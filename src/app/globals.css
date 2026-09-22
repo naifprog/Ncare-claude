@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+:root {
+  /* Core surfaces */
+  --color-page: #fcfcfc;
+  --color-card: #ffffff;
+  --color-ink: #292d32;
+  --color-ink-muted: #75838a;
+  --color-border: #eef0f2;
+
+  /* Brand */
+  --color-brand: #214097;
+  --color-brand-orange: #ffbb59;
+  --color-brand-orange-soft: #fff1de;
+
+  /* Semantic */
+  --color-positive: #008a65;
+  --color-negative: #e20030;
+  --color-info: #27a7de;
+
+  /* Tints (badges / tags / chips) */
+  --color-tint-teal: #def2f1;
+  --color-tint-yellow: #fff7d6;
+  --color-tint-rose: #ffe4df;
+  --color-tint-navy: #214097;
+
+  /* Shadows */
+  --shadow-card-color: 198 198 198;
+}
+
+@theme inline {
+  --font-sans: Arial, Helvetica, sans-serif;
+
+  --color-page: var(--color-page);
+  --color-card: var(--color-card);
+  --color-ink: var(--color-ink);
+  --color-ink-muted: var(--color-ink-muted);
+  --color-border: var(--color-border);
+
+  --color-brand: var(--color-brand);
+  --color-brand-orange: var(--color-brand-orange);
+  --color-brand-orange-soft: var(--color-brand-orange-soft);
+
+  --color-positive: var(--color-positive);
+  --color-negative: var(--color-negative);
+  --color-info: var(--color-info);
+
+  --color-tint-teal: var(--color-tint-teal);
+  --color-tint-yellow: var(--color-tint-yellow);
+  --color-tint-rose: var(--color-tint-rose);
+  --color-tint-navy: var(--color-tint-navy);
+
+  --radius-card: 5px;
+  --radius-pill: 20px;
+
+  --shadow-card: 0px 4px 4px rgba(198, 198, 198, 0.25);
+  --shadow-card-sm: 0px 2px 4px rgba(198, 198, 198, 0.25);
+  --shadow-card-lg: 2px 2px 4px rgba(198, 198, 198, 0.25);
+}
+
+body {
+  background: var(--color-page);
+  color: var(--color-ink);
+}
+
+/* Thin, unobtrusive scrollbars used inside panels/tables */
+.thin-scrollbar::-webkit-scrollbar {
+  height: 6px;
+  width: 6px;
+}
+.thin-scrollbar::-webkit-scrollbar-thumb {
+  background-color: #e3e6e9;
+  border-radius: 999px;
+}
