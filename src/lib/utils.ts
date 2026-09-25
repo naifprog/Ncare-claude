@@ -22,6 +22,13 @@ export function colorFromSeed(seed: string) {
   return AVATAR_PALETTE[Math.abs(hash) % AVATAR_PALETTE.length];
 }
 
+/** Converts the mock data's "d/m/yyyy" dates to the "yyyy-mm-dd" value of <input type="date">. */
+export function toInputDate(dmy: string) {
+  const [d, m, y] = dmy.split("/");
+  if (!d || !m || !y) return "";
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
 export function initialsFromName(name: string) {
   const parts = name.trim().split(/\s+/);
   const first = parts[0]?.[0] ?? "";
