@@ -1,10 +1,10 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/ui/ComingSoon";
+import { RequestForm } from "@/components/requests/RequestForm";
 
 export default function AddRequestPage() {
   return (
-    <AppShell title="Add request">
-      <ComingSoon title="Add request" icon="requests" />
+    <AppShell title="Requests">
+      <RequestForm />
     </AppShell>
   );
 }
