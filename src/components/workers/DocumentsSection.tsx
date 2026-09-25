@@ -13,7 +13,16 @@ type DocRow = WorkerDocument & { url?: string };
  * "Important documents" (designs 17, 18, 57, 58, 63): list with view / download / delete,
  * and the "Add document" row (name + file + Save).
  */
-export function DocumentsSection({ initial, className }: { initial: WorkerDocument[]; className?: string }) {
+export function DocumentsSection({
+  initial,
+  className,
+  canManage = true,
+}: {
+  initial: WorkerDocument[];
+  className?: string;
+  /** "Manage worker documents" permission: add / delete. Viewing needs no extra permission. */
+  canManage?: boolean;
+}) {
   const [documents, setDocuments] = useState<DocRow[]>(initial);
   const [adding, setAdding] = useState(false);
   const [docName, setDocName] = useState("");
@@ -40,7 +49,7 @@ export function DocumentsSection({ initial, className }: { initial: WorkerDocume
       <section className={cn("flex-1 rounded-[5px] bg-page px-4 pb-[30px] pt-[18px] sm:px-[30px]", className)}>
         <div className="flex min-h-11 items-center justify-between gap-4">
           <h2 className="text-xl text-ink">Important documents</h2>
-          {!adding && (
+          {!adding && canManage && (
             <button
               type="button"
               onClick={() => setAdding(true)}
@@ -86,6 +95,17 @@ export function DocumentsSection({ initial, className }: { initial: WorkerDocume
                 >
                   Save
                 </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAdding(false);
+                    setDocName("");
+                    setDocFile(null);
+                  }}
+                  className="h-11 shrink-0 px-2 text-base text-ink-muted underline"
+                >
+                  Cancel
+                </button>
               </form>
             </li>
           )}
@@ -125,23 +145,25 @@ export function DocumentsSection({ initial, className }: { initial: WorkerDocume
                     </a>
                   </>
                 ) : (
-                  // Mock documents have no file behind them yet.
+                  // Sample documents have no file behind them (no file storage in the demo).
                   <>
-                    <OutlineIconButton tone="orange" aria-label={`View ${doc.name}`} disabled title="No file in demo data" className="disabled:opacity-100">
+                    <OutlineIconButton tone="orange" aria-label={`View ${doc.name}`} disabled title="Sample document: no file is stored in the demo" className="disabled:cursor-not-allowed disabled:opacity-40">
                       <Icon name="eye" size={18} />
                     </OutlineIconButton>
-                    <OutlineIconButton tone="purple" aria-label={`Download ${doc.name}`} disabled title="No file in demo data" className="disabled:opacity-100">
+                    <OutlineIconButton tone="purple" aria-label={`Download ${doc.name}`} disabled title="Sample document: no file is stored in the demo" className="disabled:cursor-not-allowed disabled:opacity-40">
                       <ImportIcon size={20} />
                     </OutlineIconButton>
                   </>
                 )}
-                <OutlineIconButton
-                  tone="negative"
-                  aria-label={`Delete ${doc.name}`}
-                  onClick={() => setDocuments((docs) => docs.filter((d) => d.id !== doc.id))}
-                >
-                  <Icon name="trash" size={18} />
-                </OutlineIconButton>
+                {canManage && (
+                  <OutlineIconButton
+                    tone="negative"
+                    aria-label={`Delete ${doc.name}`}
+                    onClick={() => setDocuments((docs) => docs.filter((d) => d.id !== doc.id))}
+                  >
+                    <Icon name="trash" size={18} />
+                  </OutlineIconButton>
+                )}
               </div>
             </li>
           ))}

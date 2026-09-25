@@ -11,7 +11,8 @@ export default function AdminAccountTypesPage() {
         placeholder="Enter account name"
         nameHeader="Account type"
         initial={accountTypeRows}
-        powersHref="/admin/powers/add"
+        powersHref="/admin/powers/add?accountType={name}"
+        editPermission="settings.edit"
         exportName="account-types"
       />
     </AppShell>

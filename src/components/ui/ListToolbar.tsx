@@ -1,6 +1,12 @@
-import Link from "next/link";
+"use client";
 
-/** Search pill + 175×50 "New …" button above the Workers / Services tables (design 15, 19). */
+import Link from "next/link";
+import { useAccess } from "@/components/auth/AccessProvider";
+
+/**
+ * Search pill + 175×50 "New …" button above the Workers / Services tables (design 15, 19).
+ * The button is left out when the user may not open its target.
+ */
 export function ListToolbar({
   query,
   onQueryChange,
@@ -11,10 +17,12 @@ export function ListToolbar({
   query: string;
   onQueryChange: (value: string) => void;
   actionLabel: string;
-  actionHref: string;
+  actionHref?: string;
   /** Extra control between search and the button (e.g. "All Salons", design 65). */
   middle?: React.ReactNode;
 }) {
+  const { canAccessPath } = useAccess();
+  const showAction = !!actionHref && canAccessPath(actionHref);
   return (
     <div className="flex flex-col gap-[22px] sm:flex-row sm:items-center">
       <input
@@ -23,15 +31,17 @@ export function ListToolbar({
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder="Search .."
         aria-label="Search"
-        className="h-[50px] min-w-0 flex-1 rounded-pill bg-page px-[30px] text-sm text-ink placeholder:text-[#aeaeae] focus:outline focus:outline-brand"
+        className="h-[50px] min-w-0 shrink-0 rounded-pill sm:flex-1 bg-page px-[30px] text-sm text-ink placeholder:text-[#aeaeae] focus:outline focus:outline-brand"
       />
       {middle}
+      {showAction && (
       <Link
         href={actionHref}
         className="inline-flex h-[50px] shrink-0 items-center justify-center rounded-pill bg-brand text-[15px] font-bold text-white shadow-card transition-colors hover:bg-brand/90 sm:w-[175px]"
       >
         {actionLabel}
       </Link>
+      )}
     </div>
   );
 }

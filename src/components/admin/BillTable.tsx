@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { InvoiceModal, downloadBill, printBill } from "@/components/admin/InvoiceModal";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { DataTable, RowActions, type Column } from "@/components/ui/DataTable";
 import { ExportMenu } from "@/components/ui/ExportMenu";
 import { HeaderFilter } from "@/components/ui/HeaderFilter";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
 import { requestServiceFilters } from "@/lib/mock-data";
 import type { Bill } from "@/lib/mock-admin";
 
@@ -27,24 +29,30 @@ export function BillTable({
   kind,
   withExport,
   printable,
+  paginate,
 }: {
   rows: Bill[];
   kind: BillKind;
   withExport?: boolean;
   /** Adds the blue printer action (bills pages, designs 79, 80, 88). */
   printable?: boolean;
+  /** Adds the pagination footer (bills page). */
+  paginate?: boolean;
 }) {
-  const [preview, setPreview] = useState(false);
+  const { can } = useAccess();
+  const canExport = can("accounting.billsExport");
+  const [preview, setPreview] = useState<Bill | null>(null);
   const [serviceF, setServiceF] = useState<string | null>(null);
   const [statusF, setStatusF] = useState<string | null>(null);
   const visible = rows.filter((b) => (!serviceF || b.service === serviceF) && (!statusF || b.status === statusF));
+  const { pageRows, pagination } = usePagination(visible);
 
   const actions = (b: Bill) => (
     <RowActions
       label={`bill ${b.num}`}
-      onView={() => setPreview(true)}
-      onPrint={printable ? printBill : undefined}
-      onDownload={() => downloadBill(`bill-${b.num}`)}
+      onView={() => setPreview(b)}
+      onPrint={printable && canExport ? () => printBill(b) : undefined}
+      onDownload={canExport ? () => downloadBill(b) : undefined}
     />
   );
   const optionsHeader = withExport ? (
@@ -52,7 +60,7 @@ export function BillTable({
       Option{" "}
       <ExportMenu
         fileName="bills"
-        rows={rows.map((b) => ({ Num: b.num, Name: b.salon, Date: b.date, Payment: b.paymentMethod, Earning: b.earning }))}
+        rows={visible.map((b) => ({ Num: b.num, Name: b.salon, Date: b.date, Payment: b.paymentMethod, Earning: b.earning }))}
       />
     </span>
   ) : (
@@ -77,8 +85,14 @@ export function BillTable({
             ),
             width: "w-[140px]",
             render: (b) => (
-              <span className="inline-flex h-[30px] w-[84px] items-center justify-center rounded-[3px] bg-tint-teal text-positive">
-                {b.status === "Complete" ? "Complete" : b.status}
+              <span
+                className={
+                  b.status === "Complete"
+                    ? "inline-flex h-[30px] w-[84px] items-center justify-center rounded-[3px] bg-tint-teal text-positive"
+                    : "inline-flex h-[30px] w-[84px] items-center justify-center rounded-[3px] bg-tint-rose text-negative"
+                }
+              >
+                {b.status}
               </span>
             ),
           },
@@ -105,8 +119,9 @@ export function BillTable({
 
   return (
     <>
-      <DataTable columns={columns} rows={visible} rowKey={(b) => b.id} emptyText="No bills match the filters." />
-      {preview && <InvoiceModal onClose={() => setPreview(false)} />}
+      <DataTable columns={columns} rows={paginate ? pageRows : visible} rowKey={(b) => b.id} emptyText="No bills match the filters." />
+      {paginate && <Pagination className="mt-[7px]" {...pagination} />}
+      {preview && <InvoiceModal bill={preview} onClose={() => setPreview(null)} />}
     </>
   );
 }

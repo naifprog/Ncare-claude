@@ -11,6 +11,7 @@ export default function MainCategoriesPage() {
         placeholder="Enter category name"
         nameHeader="Category Name"
         initial={categoryRows}
+        editPermission="services.categories"
       />
     </AppShell>
   );

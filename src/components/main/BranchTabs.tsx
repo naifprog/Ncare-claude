@@ -14,11 +14,19 @@ export function BranchTabs({
   onChange,
   className,
 }: {
-  branches: string[];
+  branches: { id: string; name: string }[];
+  /** Selected branch id. */
   value: string;
-  onChange: (branch: string) => void;
+  onChange: (branchId: string) => void;
   className?: string;
 }) {
+  if (branches.length === 0) {
+    return (
+      <div className={cn("flex h-[50px] items-center rounded-pill bg-page px-[30px] text-sm text-ink-muted", className)}>
+        No branches assigned to your account.
+      </div>
+    );
+  }
   return (
     <div
       role="tablist"
@@ -27,17 +35,17 @@ export function BranchTabs({
     >
       {branches.map((b) => (
         <button
-          key={b}
+          key={b.id}
           type="button"
           role="tab"
-          aria-selected={b === value}
-          onClick={() => onChange(b)}
+          aria-selected={b.id === value}
+          onClick={() => onChange(b.id)}
           className={cn(
             "h-[50px] w-[169px] shrink-0 whitespace-nowrap rounded-pill px-3 text-sm",
-            b === value ? "bg-info font-bold text-white" : "text-ink",
+            b.id === value ? "bg-info font-bold text-white" : "text-ink",
           )}
         >
-          {b}
+          {b.name}
         </button>
       ))}
     </div>
@@ -100,4 +108,15 @@ export function StatusDropdown<T extends string>({
       )}
     </div>
   );
+}
+
+/**
+ * Selected branch of a branch-tab list: defaults to the second tab as drawn in the
+ * design (designs 32, 37, 40), or the first when only one branch is available.
+ */
+export function useBranchTab(branches: { id: string }[]) {
+  const [selected, setSelected] = useState<string | null>(null);
+  const valid = branches.some((b) => b.id === selected);
+  const branchId = valid ? selected! : (branches[1] ?? branches[0])?.id ?? "";
+  return [branchId, setSelected] as const;
 }

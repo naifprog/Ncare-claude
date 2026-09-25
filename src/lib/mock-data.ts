@@ -18,8 +18,9 @@ export const dashboardStats: StatItem[] = [
   { id: "revenue", label: "SAR", value: "2500" },
 ];
 
+/** Dashboard leaderboard rows; ids point at the matching worker profiles. */
 export const workers: Worker[] = Array.from({ length: 4 }, (_, i): Worker => ({
-  id: `w${i + 1}`,
+  id: `worker-${i + 1}`,
   name: "Hani hamdy",
   avatarSeed: `Hani hamdy ${i + 1}`,
   nationalityFlag: "🇵🇸",
@@ -35,11 +36,11 @@ const SINGLE_WORKER = ["Hani hamdy"];
 const FIVE_WORKERS = ["Worker A", "Worker B", "Worker C", "Worker D", "Worker E"];
 
 export const mostRequestedServices: ServiceRow[] = [
-  { id: "s1", name: "Hair cat", workerAvatars: SINGLE_WORKER, category: "Hair", priority: "Normal", price: 1440 },
-  { id: "s2", name: "Hair cat", workerAvatars: FIVE_WORKERS, category: "Hair", priority: "Special", price: 1440 },
-  { id: "s3", name: "Hair cat", workerAvatars: FIVE_WORKERS, category: "Hair", priority: "Normal", price: 1440 },
-  { id: "s4", name: "Hair cat", workerAvatars: SINGLE_WORKER, category: "Hair", priority: "Normal", price: 1440 },
-  { id: "s5", name: "Hair cat", workerAvatars: FIVE_WORKERS, category: "Hair", priority: "Special", price: 1440 },
+  { id: "service-1", name: "Hair cat", workerAvatars: SINGLE_WORKER, category: "Hair", priority: "Normal", price: 1440 },
+  { id: "service-2", name: "Hair cat", workerAvatars: FIVE_WORKERS, category: "Hair", priority: "Special", price: 1440 },
+  { id: "service-7", name: "Hair cat", workerAvatars: FIVE_WORKERS, category: "Hair", priority: "Normal", price: 1440 },
+  { id: "service-3", name: "Hair cat", workerAvatars: SINGLE_WORKER, category: "Hair", priority: "Normal", price: 1440 },
+  { id: "service-8", name: "Hair cat", workerAvatars: FIVE_WORKERS, category: "Hair", priority: "Special", price: 1440 },
 ];
 
 function buildRequests(
@@ -137,8 +138,12 @@ const allRequests: SalonRequest[] = [
 
 export function getRequestDetails(id: string): RequestDetails | undefined {
   const request = allRequests.find((r) => r.id === id);
-  if (!request) return undefined;
+  return request ? buildRequestDetails(request) : undefined;
+}
 
+/** Expands a request row into the details screen data (designs 10–14). */
+export function buildRequestDetails(request: SalonRequest): RequestDetails {
+  const id = request.id;
   const lines = Array.from({ length: 3 }, (_, i) => ({
     id: `${id}-line-${i + 1}`,
     service: request.service,
@@ -190,6 +195,23 @@ const WORKER_SEED: { name: string; earnings: number; trend: "up" | "down" }[] = 
   { name: "Rafiq Nader", earnings: 1440, trend: "up" },
 ];
 
+/**
+ * Branch assignments used by the multi-branch owner screens (the single-salon
+ * dashboard ignores them). A worker or service can belong to several branches.
+ */
+const ALL_ACTIVE_BRANCHES = ["branch-1", "branch-2", "branch-3", "branch-4", "branch-5"];
+const BRANCH_PAIRS = [
+  ALL_ACTIVE_BRANCHES,
+  ["branch-1", "branch-2"],
+  ["branch-2", "branch-3"],
+  ["branch-3", "branch-4"],
+  ["branch-4", "branch-5"],
+  ["branch-5", "branch-1"],
+  ["branch-1", "branch-3"],
+  ["branch-2", "branch-4"],
+  ["branch-3", "branch-5"],
+];
+
 export const workerProfiles: WorkerProfile[] = WORKER_SEED.map(({ name, earnings, trend }, i): WorkerProfile => ({
   id: `worker-${i + 1}`,
   name,
@@ -200,7 +222,8 @@ export const workerProfiles: WorkerProfile[] = WORKER_SEED.map(({ name, earnings
   earnings,
   earningsTrend: trend,
   currency: "SAR",
-  idNumber: "4052454141",
+  idNumber: `40524541${41 + i}`,
+  branchIds: BRANCH_PAIRS[i],
   joinDate: "15/5/2022",
   type: i === 1 ? "Special" : "Normal",
   // Rows 2 and 5 of design screen 15 carry the navy / orange avatar marker.
@@ -242,6 +265,7 @@ export const salonServices: SalonService[] = SERVICE_WORKER_SETS.map((workerIds,
   price: 1440,
   workerIds,
   imageUrl: "/images/service-haircut.jpg",
+  branchIds: BRANCH_PAIRS[i],
 }));
 
 export function getSalonService(id: string) {
@@ -266,9 +290,4 @@ export const salonProfile: SalonProfile = {
     comment:
       "Great service, distinctive and fast, and most importantly, the quiet atmosphere and the cleanliness of the place",
   })),
-};
-
-export const currentUser = {
-  name: "Bryan Salon",
-  role: "Manager",
 };

@@ -5,31 +5,74 @@ import { CaretDownIcon } from "@/components/ui/DesignIcons";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
 
+export interface PaginationState {
+  page: number;
+  pageCount: number;
+  rowsPerPage: number;
+  onPageChange: (page: number) => void;
+  onRowsPerPageChange: (rows: number) => void;
+}
+
+/**
+ * Client-side paging of an in-memory list. Returns the rows of the current page and
+ * the props of <Pagination>. The page is clamped when filters shrink the list.
+ */
+export function usePagination<T>(rows: T[], defaultRows = 10): { pageRows: T[]; pagination: PaginationState } {
+  const [requestedPage, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(defaultRows);
+  const pageCount = Math.max(1, Math.ceil(rows.length / rowsPerPage));
+  const page = Math.min(requestedPage, pageCount);
+
+  return {
+    pageRows: rows.slice((page - 1) * rowsPerPage, page * rowsPerPage),
+    pagination: {
+      page,
+      pageCount,
+      rowsPerPage,
+      onPageChange: setPage,
+      onRowsPerPageChange: (n) => {
+        setRowsPerPage(n);
+        setPage(1);
+      },
+    },
+  };
+}
+
+/** Page buttons: all pages when few, otherwise the design's "1 2 3 ••• n-2 n-1 n" (compact: "1 2 ••• n-1 n"). */
+function pageList(pageCount: number, compact?: boolean): (number | "gap")[] {
+  const edge = compact ? 2 : 3;
+  if (pageCount <= edge * 2 + 1) return Array.from({ length: pageCount }, (_, i) => i + 1);
+  const head = Array.from({ length: edge }, (_, i) => i + 1);
+  const tail = Array.from({ length: edge }, (_, i) => pageCount - edge + 1 + i);
+  return [...head, "gap", ...tail];
+}
+
 /** Table footer from the design: 40px #fcfcfc bar — rows per page · pages · go to page. */
 export function Pagination({
-  pageCount = 12,
+  page,
+  pageCount,
+  rowsPerPage,
+  onPageChange,
+  onRowsPerPageChange,
   className,
   compact,
   defaultRows = 10,
-}: {
-  pageCount?: number;
+}: Partial<PaginationState> & {
   className?: string;
-  /** Narrow variant (accounting summary, design 69): 1 2 ••• n-1 n, tighter spacing. */
+  /** Narrow variant (accounting summary, design 69): tighter spacing. */
   compact?: boolean;
   defaultRows?: number;
 }) {
-  const [page, setPage] = useState(1);
-  const [rowsPerPage, setRowsPerPage] = useState(defaultRows);
   const [goTo, setGoTo] = useState("");
-
-  const visiblePages: (number | "gap")[] = compact
-    ? [1, 2, "gap", pageCount - 1, pageCount]
-    : [1, 2, 3, "gap", pageCount - 2, pageCount - 1, pageCount];
+  const count = pageCount ?? 1;
+  const current = page ?? 1;
+  const perPage = rowsPerPage ?? defaultRows;
   const cell = compact ? "w-9" : "w-9 sm:w-[55px]";
 
+  const go = (n: number) => onPageChange?.(Math.min(count, Math.max(1, n)));
   const jump = () => {
     const n = Number(goTo);
-    if (Number.isInteger(n) && n >= 1 && n <= pageCount) setPage(n);
+    if (Number.isInteger(n) && n >= 1 && n <= count) go(n);
     setGoTo("");
   };
 
@@ -45,11 +88,11 @@ export function Pagination({
         Rows per page
         <span className="relative inline-flex items-center">
           <select
-            value={rowsPerPage}
-            onChange={(e) => setRowsPerPage(Number(e.target.value))}
+            value={perPage}
+            onChange={(e) => onRowsPerPageChange?.(Number(e.target.value))}
             className="appearance-none bg-transparent pr-6 text-ink focus:outline-none"
           >
-            {[...new Set([defaultRows, 10, 25, 50])].map((n) => (
+            {[...new Set([defaultRows, 10, 25, 50])].sort((a, b) => a - b).map((n) => (
               <option key={n} value={n}>
                 {n}
               </option>
@@ -60,7 +103,7 @@ export function Pagination({
       </label>
 
       <div className="flex items-center text-ink">
-        {visiblePages.map((p, i) =>
+        {pageList(count, compact).map((p, i) =>
           p === "gap" ? (
             <span key={`gap-${i}`} className={cn(cell, "text-center font-bold tracking-widest")} aria-hidden="true">
               •••
@@ -69,9 +112,10 @@ export function Pagination({
             <button
               key={p}
               type="button"
-              aria-current={page === p ? "page" : undefined}
-              onClick={() => setPage(p)}
-              className={cn(cell, "text-center", page === p && "text-info")}
+              aria-label={`Page ${p}`}
+              aria-current={current === p ? "page" : undefined}
+              onClick={() => go(p)}
+              className={cn(cell, "text-center", current === p && "text-info")}
             >
               {p}
             </button>
@@ -94,8 +138,9 @@ export function Pagination({
         <button
           type="button"
           aria-label="Next page"
-          onClick={() => (goTo ? jump() : setPage((p) => Math.min(pageCount, p + 1)))}
-          className="text-ink"
+          disabled={!goTo && current >= count}
+          onClick={() => (goTo ? jump() : go(current + 1))}
+          className="text-ink disabled:opacity-30"
         >
           <Icon name="chevronRight" size={20} />
         </button>

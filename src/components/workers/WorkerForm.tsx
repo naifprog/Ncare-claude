@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { pickBranch, useBranchOptions, type BranchChoice } from "@/components/auth/AccessProvider";
 import {
   DateInput,
   DropdownSelect,
@@ -14,6 +15,7 @@ import {
   TextInput,
 } from "@/components/ui/Form";
 import { nationalities, positions } from "@/lib/mock-data";
+import { DEMO_NOTE, toast } from "@/lib/demo-state";
 import { toInputDate } from "@/lib/utils";
 import type { RequestPriority, WorkerProfile } from "@/types";
 
@@ -26,13 +28,16 @@ const WORKER_TYPES = ["Normal", "Special"] as const satisfies readonly RequestPr
 export function WorkerForm({
   worker,
   basePath = "/workers",
-  branches,
+  branches: branchList,
+  defaultBranch,
 }: {
   worker?: WorkerProfile;
   basePath?: string;
-  branches?: string[];
+  branches?: BranchChoice[] | "accessible";
+  defaultBranch?: string;
 }) {
   const router = useRouter();
+  const branches = useBranchOptions(branchList);
   const [type, setType] = useState<RequestPriority>(worker?.type ?? "Normal");
 
   const name = (
@@ -98,7 +103,7 @@ export function WorkerForm({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          // No backend yet — return to the list once the form is valid.
+          toast(`${worker ? `${worker.name} updated` : "Worker added"}. ${DEMO_NOTE}`);
           router.push(worker ? `${basePath}/${worker.id}` : basePath);
         }}
       >
@@ -110,8 +115,8 @@ export function WorkerForm({
                 name="branch"
                 placeholder="Select Branch"
                 required
-                defaultValue={worker ? branches[0] : undefined}
-                options={branches.map((b) => ({ value: b, label: b }))}
+                defaultValue={pickBranch(branches, worker?.branchIds?.find((id) => branches.some((b) => b.value === id)) ?? defaultBranch ?? (worker ? branches[0]?.value : undefined))}
+                options={branches}
               />
             </FormField>
             {name}

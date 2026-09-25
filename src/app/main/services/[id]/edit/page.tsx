@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
+import { BranchScope } from "@/components/auth/AccessProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { ServiceForm } from "@/components/services/ServiceForm";
 import { getSalonService, salonServices } from "@/lib/mock-data";
-import { BRANCH_TABS } from "@/lib/mock-main";
 
 export function generateStaticParams() {
   return salonServices.map((s) => ({ id: s.id }));
@@ -15,7 +15,9 @@ export default async function MainEditServicePage({ params }: { params: Promise<
 
   return (
     <AppShell title="Services" role="main">
-      <ServiceForm service={service} basePath="/main/services" branches={BRANCH_TABS} />
+      <BranchScope branchIds={service.branchIds}>
+        <ServiceForm service={service} basePath="/main/services" branches="accessible" />
+      </BranchScope>
     </AppShell>
   );
 }

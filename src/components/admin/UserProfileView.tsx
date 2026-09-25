@@ -4,19 +4,23 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { RequestsTable } from "@/components/requests/RequestsTable";
 import { ServicesView } from "@/components/services/ServicesView";
 import { DataTable, EarningHeader, RowActions } from "@/components/ui/DataTable";
 import { PersonBoldIcon, SmsBoldIcon, VerifyBadgeIcon } from "@/components/ui/DesignIcons";
 import { ExportMenu } from "@/components/ui/ExportMenu";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
 import { PowersEditor } from "@/components/ui/PowersEditor";
 import { DocumentsSection } from "@/components/workers/DocumentsSection";
 import { EarningsValue, NationalityChip } from "@/components/workers/WorkerBits";
 import { WorkersView } from "@/components/workers/WorkersView";
-import { salonUserBranches, type AdminUser } from "@/lib/mock-admin";
+import { userPermissions } from "@/lib/access/access";
+import { branchName, contextOf, positionOf, type DirectoryUser } from "@/lib/access/directory";
+import { powerGroupsFor } from "@/lib/access/permissions";
+import { DEMO_NOTE, removeRecord, toast, updateAccessOverrides } from "@/lib/demo-state";
+import { salonUserBranches } from "@/lib/mock-admin";
 import { newRequests, salonServices, workerProfiles } from "@/lib/mock-data";
-import { powerGroups } from "@/lib/mock-main";
 import { cn } from "@/lib/utils";
 import type { RequestPriority, WorkerDocument } from "@/types";
 
@@ -38,9 +42,15 @@ const ADD_LINKS: Partial<Record<Tab, { label: string; href: string }>> = {
 };
 
 /** Admin user profile: worker (design 57), customer & other accounts (58), salon with tabs (59–63). */
-export function UserProfileView({ user }: { user: AdminUser }) {
+export function UserProfileView({ user }: { user: DirectoryUser }) {
   const router = useRouter();
+  const { can, overrides } = useAccess();
   const kind = user.accountType === "Salon" ? "salon" : user.accountType === "Worker" ? "worker" : "person";
+  // Includes access edits made in this demo session (Edit user).
+  const own = overrides.users[user.id];
+  const position = positionOf({ ...user, positionId: own?.positionId ?? user.positionId });
+  const branchIds = own?.branchIds ?? user.branchIds;
+  const access = branchIds === "all" ? "All branches" : branchIds?.length ? branchIds.map(branchName).join(", ") : null;
 
   return (
     <section className="flex flex-col gap-5 rounded-card bg-card px-4 pb-[30px] pt-[30px] shadow-card sm:px-[30px] xl:min-h-[calc(100vh-151px)]">
@@ -62,17 +72,17 @@ export function UserProfileView({ user }: { user: AdminUser }) {
 
           <div className="grid flex-1 grid-cols-[minmax(0,1fr)_auto] items-center gap-x-6 gap-y-3 text-lg text-ink sm:grid-cols-[minmax(0,300px)_119px]">
             <p className="truncate text-xl font-bold">
-              {kind === "salon" ? "Mairan Salon" : "Hani hamdy"}
+              {user.name}
               {kind === "worker" ? <span className="font-normal">(Hairdresser)</span> : null}
             </p>
             <span />
             {kind === "person" ? (
-              <p>Join on 15/5/2022</p>
+              <p>Join on {user.joinDate}</p>
             ) : (
               <p>{kind === "salon" ? "Ahmed Salem" : "Marina Salon"}</p>
             )}
             <NationalityChip flag="🇵🇸" name="Palestinian" className="w-[119px] justify-center bg-card px-1 text-xs" />
-            {kind === "person" ? <p>474141412</p> : <p>Join on 15 May 2022</p>}
+            {kind === "person" ? <p>{position?.name ?? user.accountType}</p> : <p>Join on {user.joinDate}</p>}
             {kind === "person" ? (
               <span />
             ) : (
@@ -83,24 +93,40 @@ export function UserProfileView({ user }: { user: AdminUser }) {
 
         {/* Actions */}
         <div className="flex flex-col gap-[14px]">
-          <Link
-            href="/admin/messages"
-            className="flex h-[50px] items-center justify-center gap-4 rounded-[5px] border border-info bg-card text-lg text-info shadow-card"
-          >
-            <SmsBoldIcon size={22} />
-            Send message
-          </Link>
-          <div className="grid grid-cols-2 gap-5">
-            <Link href={`/admin/users/${user.id}/edit`} className={cn(ACTION, "bg-info")}>
-              Edit
+          {can("messages.send") && (
+            <Link
+              href="/admin/messages/new"
+              className="flex h-[50px] items-center justify-center gap-4 rounded-[5px] border border-info bg-card text-lg text-info shadow-card"
+            >
+              <SmsBoldIcon size={22} />
+              Send message
             </Link>
-            <button type="button" onClick={() => router.push("/admin/users")} className={cn(ACTION, "bg-negative")}>
-              Delete
-            </button>
+          )}
+          <div className="grid grid-cols-2 gap-5">
+            {can("users.edit") && (
+              <Link href={`/admin/users/${user.id}/edit`} className={cn(ACTION, "bg-info")}>
+                Edit
+              </Link>
+            )}
+            {can("users.delete") && (
+              <button
+                type="button"
+                onClick={() => {
+                  removeRecord(user.id);
+                  toast(`${user.name} deleted. Demo only: the user returns after a reload.`);
+                  router.push("/admin/users");
+                }}
+                className={cn(ACTION, "col-start-2 bg-negative")}
+              >
+                Delete
+              </button>
+            )}
           </div>
-          <Link href={`/admin/users/${user.id}/password`} className={cn(ACTION, "bg-brand-orange")}>
-            Update password
-          </Link>
+          {can("users.password") && (
+            <Link href={`/admin/users/${user.id}/password`} className={cn(ACTION, "bg-brand-orange")}>
+              Update password
+            </Link>
+          )}
         </div>
       </div>
 
@@ -111,14 +137,24 @@ export function UserProfileView({ user }: { user: AdminUser }) {
         </div>
       )}
 
-      {kind === "salon" ? <SalonTabs /> : <DocumentsSection initial={DOCUMENTS} />}
+      {access || position ? (
+        <p className="rounded-[5px] bg-page px-5 py-3 text-sm text-ink">
+          {position ? <span>Position: {position.name}</span> : null}
+          {position && access ? <span className="mx-2 text-ink-muted">·</span> : null}
+          {access ? <span>Branch access: {access}</span> : null}
+        </p>
+      ) : null}
+
+      {kind === "salon" ? <SalonTabs user={user} /> : <DocumentsSection initial={DOCUMENTS} canManage={can("users.edit")} />}
     </section>
   );
 }
 
-function SalonTabs() {
+function SalonTabs({ user }: { user: DirectoryUser }) {
+  const { can, overrides, canAccessPath } = useAccess();
   const [tab, setTab] = useState<Tab>("Branches");
   const [branches, setBranches] = useState(salonUserBranches);
+  const { pageRows, pagination } = usePagination(branches);
   const [service, setService] = useState<string | null>(null);
   const [priority, setPriority] = useState<RequestPriority | null>(null);
   const add = ADD_LINKS[tab];
@@ -140,7 +176,7 @@ function SalonTabs() {
             </button>
           ))}
         </div>
-        {add && (
+        {add && canAccessPath(add.href) && (
           <Link href={add.href} className="text-xl text-brand underline underline-offset-4">
             {add.label}
           </Link>
@@ -173,18 +209,25 @@ function SalonTabs() {
                   render: (b) => (
                     <RowActions
                       label={b.name}
-                      powersHref={`/admin/powers/add?branch=${b.id}`}
+                      powersHref="/admin/powers/add?user=user-3"
                       viewHref="/admin/users/user-3"
                       editHref="/admin/users/user-3/edit"
-                      onDelete={() => setBranches((r) => r.filter((x) => x.id !== b.id))}
+                      onDelete={
+                        can("branches.delete")
+                          ? () => {
+                              setBranches((r) => r.filter((x) => x.id !== b.id));
+                              toast(`${b.name} deleted. ${DEMO_NOTE}`);
+                            }
+                          : undefined
+                      }
                     />
                   ),
                 },
               ]}
-              rows={branches}
+              rows={pageRows}
               rowKey={(b) => b.id}
             />
-            <Pagination className="mt-auto" />
+            <Pagination className="mt-auto" {...pagination} />
           </>
         )}
         {tab === "Requests" && (
@@ -211,8 +254,17 @@ function SalonTabs() {
         {tab === "Workers" && (
           <WorkersView initialWorkers={workerProfiles} basePath="/admin/salons/workers" exportName="workers" embedded />
         )}
-        {tab === "Documents" && <DocumentsSection initial={DOCUMENTS} />}
-        {tab === "Powers" && <PowersEditor groups={powerGroups} />}
+        {tab === "Documents" && <DocumentsSection initial={DOCUMENTS} canManage={can("users.edit")} />}
+        {tab === "Powers" && (
+          <PowersEditor
+            groups={powerGroupsFor(contextOf(user) ?? "salon")}
+            value={userPermissions(user, overrides)}
+            onChange={(permissions) =>
+              updateAccessOverrides((o) => ({ ...o, users: { ...o.users, [user.id]: { ...o.users[user.id], permissions } } }))
+            }
+            readOnly={!can("powers.manage")}
+          />
+        )}
       </div>
     </div>
   );

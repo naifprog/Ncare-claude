@@ -12,6 +12,8 @@ import {
   SubmitButton,
   TextInput,
 } from "@/components/ui/Form";
+import { branchManagers } from "@/lib/access/directory";
+import { DEMO_NOTE, toast } from "@/lib/demo-state";
 import { regions, type Branch } from "@/lib/mock-main";
 
 export const USERNAME_HINT = "To be used for logging in, must consist of letters and \"_\".";
@@ -27,6 +29,7 @@ export function BranchForm({ branch }: { branch?: Branch }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          toast(`${branch ? `${branch.name} updated` : "Branch added"}. ${DEMO_NOTE}`);
           router.push(branch ? `/main/branches/${branch.id}` : "/main/branches");
         }}
       >
@@ -49,8 +52,10 @@ export function BranchForm({ branch }: { branch?: Branch }) {
               id="branch-manager"
               name="manager"
               placeholder="Enter manager name"
-              required
-              defaultValue={branch?.manager}
+              required={!branch}
+              // A branch can have several managers (users); the design shows one field, so
+              // existing managers are listed comma-separated.
+              defaultValue={branch ? branchManagers(branch).map((m) => m.name).join(", ") : undefined}
             />
           </FormField>
           <FormField label="Password" hint={PASSWORD_HINT} htmlFor="branch-password">

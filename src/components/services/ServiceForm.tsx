@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { pickBranch, useBranchOptions, type BranchChoice } from "@/components/auth/AccessProvider";
 import {
   DropdownSelect,
   FileInput,
@@ -13,6 +14,7 @@ import {
   TextInput,
 } from "@/components/ui/Form";
 import { serviceCategories, workerProfiles } from "@/lib/mock-data";
+import { DEMO_NOTE, toast } from "@/lib/demo-state";
 import type { SalonService } from "@/types";
 
 /**
@@ -22,13 +24,16 @@ import type { SalonService } from "@/types";
 export function ServiceForm({
   service,
   basePath = "/services",
-  branches,
+  branches: branchList,
+  defaultBranch,
 }: {
   service?: SalonService;
   basePath?: string;
-  branches?: string[];
+  branches?: BranchChoice[] | "accessible";
+  defaultBranch?: string;
 }) {
   const router = useRouter();
+  const branches = useBranchOptions(branchList);
   const [image, setImage] = useState<File | null>(null);
 
   const name = (
@@ -91,7 +96,7 @@ export function ServiceForm({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          // No backend yet — return to the list once the form is valid.
+          toast(`${service ? `Service ${service.num} updated` : "Service added"}. ${DEMO_NOTE}`);
           router.push(service ? `${basePath}/${service.id}` : basePath);
         }}
       >
@@ -103,8 +108,8 @@ export function ServiceForm({
                 name="branch"
                 placeholder="Select branch"
                 required
-                defaultValue={service ? branches[0] : undefined}
-                options={branches.map((b) => ({ value: b, label: b }))}
+                defaultValue={pickBranch(branches, service?.branchIds?.find((id) => branches.some((b) => b.value === id)) ?? defaultBranch ?? (service ? branches[0]?.value : undefined))}
+                options={branches}
               />
             </FormField>
             {name}

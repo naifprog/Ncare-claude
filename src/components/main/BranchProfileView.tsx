@@ -3,9 +3,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRef, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { RatingsSection, WorkTimeSection } from "@/components/settings/SalonProfileView";
 import { ArrowDownIcon } from "@/components/ui/DesignIcons";
 import { Icon } from "@/components/ui/Icon";
+import { branchManagers } from "@/lib/access/directory";
 import { salonProfile } from "@/lib/mock-data";
 import type { Branch } from "@/lib/mock-main";
 import { cn } from "@/lib/utils";
@@ -13,6 +15,8 @@ import { cn } from "@/lib/utils";
 /** Branch profile (Main Salon UI): with activity (design 31) or freshly created (design 30). */
 export function BranchProfileView({ branch }: { branch: Branch }) {
   const isNew = !!branch.isNew;
+  const { can } = useAccess();
+  const managers = branchManagers(branch);
   const listRef = useRef<HTMLUListElement>(null);
   const [atEnd, setAtEnd] = useState(false);
 
@@ -71,18 +75,25 @@ export function BranchProfileView({ branch }: { branch: Branch }) {
           {!isNew && (
             <Image src="/images/salon-cover.jpg" alt={`${branch.name} cover`} fill sizes="673px" className="object-cover" />
           )}
-          <Link
-            href={`/main/branches/${branch.id}/edit`}
-            aria-label={`Edit ${branch.name}`}
-            className="absolute right-5 top-5 flex h-[50px] w-[50px] items-center justify-center rounded-full bg-info text-white shadow-card"
-          >
-            <Icon name="editBold" size={22} />
-          </Link>
+          {can("branches.edit") && (
+            <Link
+              href={`/main/branches/${branch.id}/edit`}
+              aria-label={`Edit ${branch.name}`}
+              className="absolute right-5 top-5 flex h-[50px] w-[50px] items-center justify-center rounded-full bg-info text-white shadow-card"
+            >
+              <Icon name="editBold" size={22} />
+            </Link>
+          )}
           <div className="absolute inset-x-5 bottom-5 flex h-[90px] items-center gap-5 rounded-[5px] bg-white/80 px-2.5">
             <Image src="/images/salon-logo.png" alt="" width={70} height={70} className="h-[70px] w-[70px] rounded-[10px] object-cover" />
             <div className="min-w-0">
-              <p className="truncate text-xl font-bold text-ink">Bryan salon branch riyadh</p>
+              <p className="truncate text-xl font-bold text-ink">{branch.name}</p>
               <p className="truncate text-base text-ink">{branch.address}</p>
+              <p className="truncate text-sm text-ink-muted">
+                {managers.length === 0
+                  ? "No manager assigned yet"
+                  : `${managers.length === 1 ? "Manager" : "Managers"}: ${managers.map((m) => m.name).join(", ")}`}
+              </p>
             </div>
           </div>
         </div>

@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import { useEffect, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { SubmitButton } from "@/components/ui/Form";
 import { CaretDownIcon, GalleryExportIcon } from "@/components/ui/DesignIcons";
 import { Icon } from "@/components/ui/Icon";
+import { DEMO_NOTE, toast } from "@/lib/demo-state";
 import { cn } from "@/lib/utils";
 import type { SalonProfile, WeekDay } from "@/types";
 
@@ -47,6 +49,9 @@ function ImagePicker({ label, onPick, children }: { label: string; onPick: (file
 
 /** Salon profile (design screen 22) and its edit state (screen 23). */
 export function SalonProfileView({ profile }: { profile: SalonProfile }) {
+  const { can } = useAccess();
+  const canImages = can("settings.profileImages");
+  const canHours = can("settings.profileHours");
   const [editing, setEditing] = useState(false);
   const [workDays, setWorkDays] = useState<WeekDay[]>(profile.workDays);
   const [openFrom, setOpenFrom] = useState(profile.openFrom);
@@ -76,6 +81,7 @@ export function SalonProfileView({ profile }: { profile: SalonProfile }) {
       onSubmit={(e) => {
         e.preventDefault();
         setEditing(false);
+        toast(`Salon profile updated. ${DEMO_NOTE}`);
       }}
     >
       {/* Identity + cover */}
@@ -84,7 +90,7 @@ export function SalonProfileView({ profile }: { profile: SalonProfile }) {
           <div className="relative h-[179px] w-[181px] overflow-hidden rounded-[15px] bg-border">
             {/* eslint-disable-next-line @next/next/no-img-element -- local file preview or static asset */}
             <img src={logoUrl ?? "/images/salon-logo.png"} alt={`${profile.name} logo`} className="h-full w-full object-cover" />
-            {editing && (
+            {editing && canImages && (
               <ImagePicker label="salon logo" onPick={(file) => setLogoUrl(URL.createObjectURL(file))}>
                 <span className="absolute inset-0 bg-black/20" />
                 <GalleryExportIcon size={35} className="relative text-white" />
@@ -102,14 +108,14 @@ export function SalonProfileView({ profile }: { profile: SalonProfile }) {
           ) : (
             <Image src="/images/salon-cover.jpg" alt={`${profile.name} cover`} fill sizes="764px" className="object-cover" priority />
           )}
-          {editing ? (
+          {editing && canImages ? (
             <ImagePicker label="salon cover image" onPick={(file) => setCoverUrl(URL.createObjectURL(file))}>
               <span className="absolute inset-0 bg-black/10" />
               <span className="relative flex h-[60px] w-[60px] items-center justify-center rounded-full bg-white/50 text-white">
                 <GalleryExportIcon size={35} />
               </span>
             </ImagePicker>
-          ) : (
+          ) : editing || !(canImages || canHours) ? null : (
             <button
               type="button"
               onClick={() => setEditing(true)}
@@ -123,7 +129,7 @@ export function SalonProfileView({ profile }: { profile: SalonProfile }) {
       </div>
 
       <WorkTimeSection
-        editing={editing}
+        editing={editing && canHours}
         workDays={workDays}
         onToggleDay={toggleDay}
         openFrom={openFrom}

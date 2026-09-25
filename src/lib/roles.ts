@@ -1,6 +1,8 @@
 /**
- * The three dashboards of the design file ("Sub Salon UI", "Main Salon UI",
- * "Super Admin"). Each role lives under its own route prefix.
+ * The three dashboard contexts of the design file ("Sub Salon UI", "Main Salon UI",
+ * "Super Admin"), each under its own route prefix. A context only sets the scope of
+ * the dashboard; what a user can see and do inside it comes from their permissions
+ * (`src/lib/access`).
  */
 export type Role = "salon" | "main" | "admin";
 
@@ -31,17 +33,6 @@ export const ROLE_HOME: Record<Role, string> = {
   admin: "/admin",
 };
 
-export const ROLE_LOGIN: Record<Role, string> = {
-  salon: "/login",
-  main: "/login?next=/main",
-  admin: "/admin/login",
-};
-
-export const ROLE_USER: Record<Role, { name: string; tag?: string }> = {
-  salon: { name: "Bryan Salon" },
-  main: { name: "Bryan Salon" },
-  admin: { name: "Ahmed Alwaly", tag: "Admin" },
-};
 
 export const NAV: Record<Role, NavItem[]> = {
   // Sub Salon UI (design screens 1–24)

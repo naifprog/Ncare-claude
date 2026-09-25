@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { PhotoAvatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { OutlineIconButton, outlineIconButtonClass } from "@/components/ui/Button";
 import { ExportMenu } from "@/components/ui/ExportMenu";
 import { HeaderFilter } from "@/components/ui/HeaderFilter";
 import { Icon } from "@/components/ui/Icon";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
+import { removeRecord, toast, useRemovedIds } from "@/lib/demo-state";
 import { requestServiceFilters } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { RequestStatus, SalonRequest } from "@/types";
@@ -28,6 +30,12 @@ function RowOptions({
   basePath: string;
 }) {
   const [resolution, setResolution] = useState<"accepted" | "rejected" | null>(null);
+  const { can } = useAccess();
+  const branchId = row.branchId;
+  const resolve = (value: "accepted" | "rejected") => {
+    setResolution(value);
+    toast(`Request ${row.num} ${value}. Demo only: the status is not saved.`);
+  };
 
   const view = (
     <Link
@@ -39,14 +47,14 @@ function RowOptions({
     </Link>
   );
 
-  if (status === "new") {
+  if (status === "new" && can("requests.accept", branchId)) {
     return (
       <div className="flex items-center gap-2.5">
         {view}
         <button
           type="button"
           disabled={resolution !== null}
-          onClick={() => setResolution("rejected")}
+          onClick={() => resolve("rejected")}
           className="h-[30px] w-[75px] rounded-[3px] bg-negative text-sm text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {resolution === "rejected" ? "Rejected" : "Reject"}
@@ -54,7 +62,7 @@ function RowOptions({
         <button
           type="button"
           disabled={resolution !== null}
-          onClick={() => setResolution("accepted")}
+          onClick={() => resolve("accepted")}
           className="h-[30px] w-[74px] rounded-[3px] bg-positive text-sm text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {resolution === "accepted" ? "Accepted" : "Accept"}
@@ -67,16 +75,20 @@ function RowOptions({
     return (
       <div className="flex items-center gap-2.5">
         {view}
-        <Link
-          href={`${basePath}/${row.id}/edit`}
-          aria-label={`Edit request ${row.num}`}
-          className={outlineIconButtonClass("brand")}
-        >
-          <Icon name="edit" size={18} />
-        </Link>
-        <OutlineIconButton tone="negative" aria-label={`Delete request ${row.num}`} onClick={onDelete}>
-          <Icon name="trash" size={18} />
-        </OutlineIconButton>
+        {can("requests.edit", branchId) && (
+          <Link
+            href={`${basePath}/${row.id}/edit`}
+            aria-label={`Edit request ${row.num}`}
+            className={outlineIconButtonClass("brand")}
+          >
+            <Icon name="edit" size={18} />
+          </Link>
+        )}
+        {can("requests.delete", branchId) && (
+          <OutlineIconButton tone="negative" aria-label={`Delete request ${row.num}`} onClick={onDelete}>
+            <Icon name="trash" size={18} />
+          </OutlineIconButton>
+        )}
       </div>
     );
   }
@@ -104,8 +116,9 @@ export function RequestsTable({
   /** Adds the orange export button to the Options header (super admin, designs 60, 68). */
   exportName?: string;
 }) {
-  const [deleted, setDeleted] = useState<string[]>([]);
-  const visible = rows.filter((r) => !deleted.includes(r.id));
+  const removed = useRemovedIds();
+  const visible = rows.filter((r) => !removed.has(r.id));
+  const { pageRows, pagination } = usePagination(visible);
 
   return (
     <div className="mt-2.5">
@@ -153,7 +166,7 @@ export function RequestsTable({
             </tr>
           </thead>
           <tbody>
-            {visible.map((row) => (
+            {pageRows.map((row) => (
               <tr key={row.id} className="h-[70px] border-b border-[#f2f2f2]">
                 <td className="pl-2.5">{row.num}</td>
                 <td>
@@ -178,7 +191,10 @@ export function RequestsTable({
                     row={row}
                     status={status}
                     basePath={basePath}
-                    onDelete={() => setDeleted((d) => [...d, row.id])}
+                    onDelete={() => {
+                      removeRecord(row.id);
+                      toast(`Request ${row.num} deleted. Demo only: it returns after a reload.`);
+                    }}
                   />
                 </td>
               </tr>
@@ -193,7 +209,7 @@ export function RequestsTable({
           </tbody>
         </table>
       </div>
-      <Pagination className="mt-[7px]" />
+      <Pagination className="mt-[7px]" {...pagination} />
     </div>
   );
 }

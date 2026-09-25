@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AccessBoundary, RouteGuard } from "@/components/auth/AccessProvider";
 import { Sidebar } from "@/components/layout/Sidebar";
 import { Icon } from "@/components/ui/Icon";
 
@@ -9,6 +10,28 @@ import { Icon } from "@/components/ui/Icon";
  * no header or fixed sidebar; the orange menu button opens the navigation drawer.
  */
 export function SplitShell({
+  title,
+  action,
+  list,
+  children,
+}: {
+  title: React.ReactNode;
+  action?: React.ReactNode;
+  list: React.ReactNode;
+  children: React.ReactNode;
+}) {
+  return (
+    <AccessBoundary context="admin">
+      <RouteGuard>
+        <SplitLayout title={title} action={action} list={list}>
+          {children}
+        </SplitLayout>
+      </RouteGuard>
+    </AccessBoundary>
+  );
+}
+
+function SplitLayout({
   title,
   action,
   list,

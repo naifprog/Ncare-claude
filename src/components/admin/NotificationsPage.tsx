@@ -2,10 +2,13 @@
 
 import { useState } from "react";
 import { SplitShell } from "@/components/admin/SplitShell";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { CaretDownIcon } from "@/components/ui/DesignIcons";
 import { DateInput, DropdownSelect, FormField, FormGrid, SubmitButton, TextInput } from "@/components/ui/Form";
 import { Icon } from "@/components/ui/Icon";
-import { ACCOUNT_TYPES, adminNotifications, adminUsers } from "@/lib/mock-admin";
+import { directoryUsers } from "@/lib/access/directory";
+import { DEMO_NOTE, toast } from "@/lib/demo-state";
+import { ACCOUNT_TYPES, adminNotifications } from "@/lib/mock-admin";
 import { cn } from "@/lib/utils";
 
 type Notice = (typeof adminNotifications)[number];
@@ -67,8 +70,6 @@ function CountedField({
 export function NotificationsPage() {
   const [items, setItems] = useState<Notice[]>(adminNotifications);
   const [openId, setOpenId] = useState<string | null>(null);
-  const [sendNow, setSendNow] = useState(true);
-  const [formKey, setFormKey] = useState(0);
 
   return (
     <SplitShell
@@ -115,95 +116,113 @@ export function NotificationsPage() {
         </ul>
       }
     >
-      <section className="px-2 pt-2">
-        <h2 className="pl-2.5 text-[22px] leading-[26px] text-ink">Add Notification</h2>
-        <form
-          key={formKey}
-          className="mt-6"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const data = new FormData(e.currentTarget);
-            const to = String(data.get("accountType") || "All");
-            setItems((list) => [
-              {
-                id: `an-new-${Date.now()}`,
-                title: String(data.get("titleEn")),
-                body: String(data.get("textEn")),
-                time: sendNow ? "now" : String(data.get("time") || ""),
-                sentAt: sendNow ? "Now" : `${data.get("time")}, ${data.get("date")}`,
-                from: "Ahmed Alwaly(Admin)",
-                to: `${to}.`,
-              },
-              ...list,
-            ]);
-            setFormKey((k) => k + 1);
-            setSendNow(true);
-          }}
-        >
-          <FormGrid loose>
-            <FormField label="Title(English)" htmlFor="n-title-en">
-              <CountedField id="n-title-en" name="titleEn" max={40} placeholder="Enter Title" />
-            </FormField>
-            <FormField label="Title(Arabic)" htmlFor="n-title-ar">
-              <CountedField id="n-title-ar" name="titleAr" max={40} dir="rtl" placeholder="Enter Title" />
-            </FormField>
-            <FormField label="Text(English)" htmlFor="n-text-en">
-              <CountedField id="n-text-en" name="textEn" max={150} multiline placeholder="Enter text" />
-            </FormField>
-            <FormField label="Text(Arabic)" htmlFor="n-text-ar">
-              <CountedField id="n-text-ar" name="textAr" max={150} multiline dir="rtl" placeholder="Enter text" />
-            </FormField>
-            <FormField label="Account type" htmlFor="n-type">
-              <DropdownSelect
-                id="n-type"
-                name="accountType"
-                placeholder="Select Account type"
-                options={ACCOUNT_TYPES.map((t) => ({ value: t, label: t }))}
-              />
-            </FormField>
-            <FormField label="Username" htmlFor="n-user">
-              <DropdownSelect
-                id="n-user"
-                name="username"
-                placeholder="Select Username"
-                options={[...new Set(adminUsers.map((u) => u.name))].map((n) => ({ value: n, label: n }))}
-              />
-            </FormField>
-          </FormGrid>
-
-          <label className="mt-5 flex w-fit cursor-pointer items-center gap-3 pl-1 text-sm text-ink">
-            <input
-              type="checkbox"
-              checked={sendNow}
-              onChange={(e) => setSendNow(e.target.checked)}
-              className="h-4 w-4 accent-brand-orange"
-            />
-            Send Now
-          </label>
-
-          {!sendNow && (
-            <div className="mt-5">
-              <FormGrid>
-                <FormField label="Time" htmlFor="n-time">
-                  <TextInput
-                    id="n-time"
-                    name="time"
-                    placeholder="Enter time"
-                    required
-                    pattern="^\d{1,2}:\d{2}\s?([aApP][mM])?$"
-                    title="e.g. 5:00am"
-                  />
-                </FormField>
-                <FormField label="Date" htmlFor="n-date">
-                  <DateInput id="n-date" name="date" required />
-                </FormField>
-              </FormGrid>
-            </div>
-          )}
-
-          <SubmitButton className="mt-6">Save</SubmitButton>
-        </form>
-      </section>
+      <AddNotificationForm onAdd={(notice) => setItems((list) => [notice, ...list])} />
     </SplitShell>
+  );
+}
+
+/** "Add Notification" (design 85); needs the "Create / send notifications" permission. */
+function AddNotificationForm({ onAdd }: { onAdd: (notice: Notice) => void }) {
+  const { user, can } = useAccess();
+  const [sendNow, setSendNow] = useState(true);
+  const [formKey, setFormKey] = useState(0);
+
+  if (!can("notifications.send")) {
+    return (
+      <section className="px-2 pt-2">
+        <h2 className="pl-2.5 text-[22px] leading-[26px] text-ink">Notifications</h2>
+        <p className="mt-6 pl-2.5 text-sm text-ink-muted">Your account can read notifications but not send them.</p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="px-2 pt-2">
+      <h2 className="pl-2.5 text-[22px] leading-[26px] text-ink">Add Notification</h2>
+      <form
+        key={formKey}
+        className="mt-6"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          const to = [data.get("accountType"), data.get("username")].filter(Boolean).join(", ") || "All accounts";
+          onAdd({
+            id: `an-new-${Date.now()}`,
+            title: String(data.get("titleEn")),
+            body: String(data.get("textEn")),
+            time: sendNow ? "now" : String(data.get("time") || ""),
+            sentAt: sendNow ? "Now" : `${data.get("time")}, ${data.get("date")}`,
+            from: `${user.name}${user.tag ? `(${user.tag})` : ""}`,
+            to: `${to}.`,
+          });
+          toast(`Notification ${sendNow ? "sent" : "scheduled"} (demo: nothing is delivered). ${DEMO_NOTE}`);
+          setFormKey((k) => k + 1);
+          setSendNow(true);
+        }}
+      >
+        <FormGrid loose>
+          <FormField label="Title(English)" htmlFor="n-title-en">
+            <CountedField id="n-title-en" name="titleEn" max={40} placeholder="Enter Title" />
+          </FormField>
+          <FormField label="Title(Arabic)" htmlFor="n-title-ar">
+            <CountedField id="n-title-ar" name="titleAr" max={40} dir="rtl" placeholder="Enter Title" />
+          </FormField>
+          <FormField label="Text(English)" htmlFor="n-text-en">
+            <CountedField id="n-text-en" name="textEn" max={150} multiline placeholder="Enter text" />
+          </FormField>
+          <FormField label="Text(Arabic)" htmlFor="n-text-ar">
+            <CountedField id="n-text-ar" name="textAr" max={150} multiline dir="rtl" placeholder="Enter text" />
+          </FormField>
+          <FormField label="Account type" htmlFor="n-type">
+            <DropdownSelect
+              id="n-type"
+              name="accountType"
+              placeholder="Select Account type"
+              options={ACCOUNT_TYPES.map((t) => ({ value: t, label: t }))}
+            />
+          </FormField>
+          <FormField label="Username" htmlFor="n-user">
+            <DropdownSelect
+              id="n-user"
+              name="username"
+              placeholder="Select Username"
+              options={[...new Set(directoryUsers.map((u) => u.name))].map((n) => ({ value: n, label: n }))}
+            />
+          </FormField>
+        </FormGrid>
+
+        <label className="mt-5 flex w-fit cursor-pointer items-center gap-3 pl-1 text-sm text-ink">
+          <input
+            type="checkbox"
+            checked={sendNow}
+            onChange={(e) => setSendNow(e.target.checked)}
+            className="h-4 w-4 accent-brand-orange"
+          />
+          Send Now
+        </label>
+
+        {!sendNow && (
+          <div className="mt-5">
+            <FormGrid>
+              <FormField label="Time" htmlFor="n-time">
+                <TextInput
+                  id="n-time"
+                  name="time"
+                  placeholder="Enter time"
+                  required
+                  pattern="^\d{1,2}:\d{2}\s?([aApP][mM])?$"
+                  title="e.g. 5:00am"
+                />
+              </FormField>
+              <FormField label="Date" htmlFor="n-date">
+                <DateInput id="n-date" name="date" required />
+              </FormField>
+            </FormGrid>
+          </div>
+        )}
+
+        <SubmitButton className="mt-6">Save</SubmitButton>
+      </form>
+    </section>
   );
 }

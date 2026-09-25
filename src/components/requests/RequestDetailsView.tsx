@@ -4,7 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { PhotoAvatar } from "@/components/ui/Avatar";
+import { requestBillHtml } from "@/lib/bills";
+import { removeRecord, toast } from "@/lib/demo-state";
+import { printHtml } from "@/lib/export";
 import { cn } from "@/lib/utils";
 import type { RequestDetails, RequestStatus } from "@/types";
 
@@ -20,8 +24,16 @@ const ACTION = "flex h-[50px] items-center justify-center rounded-[5px] text-lg 
 /** Request details (design screens 10–14: new / special / pending / completed / incomplete). */
 export function RequestDetailsView({ request, basePath = "/requests" }: { request: RequestDetails; basePath?: string }) {
   const router = useRouter();
+  const { can } = useAccess();
   const [status, setStatus] = useState<RequestStatus>(request.status);
   const total = request.lines.reduce((sum, line) => sum + line.price, 0);
+  const branchId = request.branchId;
+  const canEdit = can("requests.edit", branchId);
+  const canDelete = can("requests.delete", branchId);
+  const resolve = (next: RequestStatus, verb: string) => {
+    setStatus(next);
+    toast(`Request ${request.num} ${verb}. Demo only: the status is not saved.`);
+  };
 
   return (
     <section className="rounded-card bg-card px-4 pb-10 pt-[27px] shadow-card sm:px-[30px] xl:min-h-[calc(100vh-130px)]">
@@ -74,13 +86,16 @@ export function RequestDetailsView({ request, basePath = "/requests" }: { reques
                     <span className="text-lg font-bold">{request.paymentMethod}</span>
                   )}
                 </span>
-                <button
-                  type="button"
-                  onClick={() => window.print()}
-                  className="h-11 w-[140px] rounded-[5px] bg-info text-lg font-bold text-white shadow-card transition-opacity hover:opacity-90"
-                >
-                  Print bill
-                </button>
+                {can("requests.print", branchId) && (
+                  <button
+                    type="button"
+                    onClick={() => printHtml(requestBillHtml(request))}
+                    title="Opens the print dialog (choose “Save as PDF” to keep a copy)"
+                    className="h-11 w-[140px] rounded-[5px] bg-info text-lg font-bold text-white shadow-card transition-opacity hover:opacity-90"
+                  >
+                    Print bill
+                  </button>
+                )}
               </li>
             </ul>
           </div>
@@ -89,31 +104,49 @@ export function RequestDetailsView({ request, basePath = "/requests" }: { reques
         {/* Status actions + user info */}
         <div className="space-y-5">
           {status === "new" ? (
-            <div className="space-y-5">
-              <button type="button" onClick={() => setStatus("pending")} className={cn(ACTION, "w-full bg-positive")}>
-                Accept
-              </button>
-              <button
-                type="button"
-                onClick={() => setStatus("incomplete")}
-                className={cn(ACTION, "w-full bg-negative")}
-              >
-                Reject
-              </button>
-            </div>
+            can("requests.accept", branchId) ? (
+              <div className="space-y-5">
+                <button type="button" onClick={() => resolve("pending", "accepted")} className={cn(ACTION, "w-full bg-positive")}>
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  onClick={() => resolve("incomplete", "rejected")}
+                  className={cn(ACTION, "w-full bg-negative")}
+                >
+                  Reject
+                </button>
+              </div>
+            ) : (
+              <div role="status" className={cn(ACTION, "bg-info shadow-none")}>
+                New
+              </div>
+            )
           ) : (
             <div className="space-y-5">
               <div role="status" className={cn(ACTION, "shadow-none", STATUS_LABELS[status].className)}>
                 {STATUS_LABELS[status].label}
               </div>
-              {status === "pending" && (
+              {status === "pending" && (canEdit || canDelete) && (
                 <div className="grid grid-cols-2 gap-[21px]">
-                  <Link href={`${basePath}/${request.id}/edit`} className={cn(ACTION, "bg-info")}>
-                    Edit
-                  </Link>
-                  <button type="button" onClick={() => router.push(basePath)} className={cn(ACTION, "bg-negative")}>
-                    Delete
-                  </button>
+                  {canEdit && (
+                    <Link href={`${basePath}/${request.id}/edit`} className={cn(ACTION, "bg-info")}>
+                      Edit
+                    </Link>
+                  )}
+                  {canDelete && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        removeRecord(request.id);
+                        toast(`Request ${request.num} deleted. Demo only: it returns after a reload.`);
+                        router.push(basePath);
+                      }}
+                      className={cn(ACTION, "bg-negative", !canEdit && "col-start-2")}
+                    >
+                      Delete
+                    </button>
+                  )}
                 </div>
               )}
             </div>

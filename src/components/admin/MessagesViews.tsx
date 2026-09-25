@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { SplitShell } from "@/components/admin/SplitShell";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { ChatPanel } from "@/components/layout/ChatPanel";
 import { Avatar } from "@/components/ui/Avatar";
 import { adminChatThread } from "@/lib/mock-admin";
@@ -68,6 +69,25 @@ function ConversationList({ selectedId, onSelect }: { selectedId?: string; onSel
   );
 }
 
+function NewMessageLink() {
+  const { can } = useAccess();
+  if (!can("messages.send")) return null;
+  return (
+    <Link
+      href="/admin/messages/new"
+      className="flex h-10 w-[160px] items-center justify-center rounded-pill bg-info text-sm font-bold text-white shadow-card"
+    >
+      New message
+    </Link>
+  );
+}
+
+/** Full-height conversation; read-only for users without "Send messages". */
+function PageChat(props: Omit<React.ComponentProps<typeof ChatPanel>, "variant" | "canSend">) {
+  const { can } = useAccess();
+  return <ChatPanel {...props} variant="page" canSend={can("messages.send")} />;
+}
+
 /** Messages page (design 82). */
 export function MessagesPage() {
   const [selected, setSelected] = useState<MessageItem>(CONVERSATIONS[0]);
@@ -75,17 +95,10 @@ export function MessagesPage() {
   return (
     <SplitShell
       title="Messages(1442)"
-      action={
-        <Link
-          href="/admin/messages/new"
-          className="flex h-10 w-[160px] items-center justify-center rounded-pill bg-info text-sm font-bold text-white shadow-card"
-        >
-          New message
-        </Link>
-      }
+      action={<NewMessageLink />}
       list={<ConversationList selectedId={selected.id} onSelect={setSelected} />}
     >
-      <ChatPanel key={selected.id} contact={selected} variant="page" initialThread={adminChatThread} />
+      <PageChat key={selected.id} contact={selected} initialThread={adminChatThread} />
     </SplitShell>
   );
 }
@@ -104,7 +117,7 @@ export function NewMessagePage() {
   return (
     <SplitShell title="New message" list={<ConversationList onSelect={setRecipient} />}>
       {recipient ? (
-        <ChatPanel key={recipient.id} contact={recipient} variant="page" initialThread={[]} />
+        <PageChat key={recipient.id} contact={recipient} initialThread={[]} />
       ) : (
         <div className="flex h-full flex-col gap-5">
           <div className="relative">

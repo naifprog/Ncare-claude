@@ -2,18 +2,21 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { DataTable } from "@/components/ui/DataTable";
 import { ListCard, ListToolbar } from "@/components/ui/ListToolbar";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
 import type { Branch } from "@/lib/mock-main";
 
 /** Branches powers (design 43): each branch links to its permission editor. */
 export function BranchPowersView({ branches }: { branches: Branch[] }) {
+  const { canAccessBranch } = useAccess();
   const [query, setQuery] = useState("");
   const rows = useMemo(
-    () => branches.filter((b) => b.name.toLowerCase().includes(query.trim().toLowerCase())),
-    [branches, query],
+    () => branches.filter((b) => canAccessBranch(b.id) && b.name.toLowerCase().includes(query.trim().toLowerCase())),
+    [branches, canAccessBranch, query],
   );
+  const { pageRows, pagination } = usePagination(rows);
 
   return (
     <ListCard>
@@ -41,12 +44,12 @@ export function BranchPowersView({ branches }: { branches: Branch[] }) {
               ),
             },
           ]}
-          rows={rows}
+          rows={pageRows}
           rowKey={(b) => b.id}
           emptyText="No branches match your search."
         />
       </div>
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </ListCard>
   );
 }

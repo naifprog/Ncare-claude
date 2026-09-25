@@ -1,9 +1,13 @@
+"use client";
+
+import { useAccess } from "@/components/auth/AccessProvider";
 import { RowArrowButton } from "@/components/dashboard/RowArrowButton";
 import { PhotoAvatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "@/components/ui/Badge";
 import type { ServiceRow } from "@/types";
 
-export function ServicesLeaderboard({ services }: { services: ServiceRow[] }) {
+export function ServicesLeaderboard({ services, basePath = "/services" }: { services: ServiceRow[]; basePath?: string }) {
+  const { canAccessPath } = useAccess();
   return (
     // The whole section (including its #fcfcfc background) fades out at the bottom, as in the design.
     <section className="fade-services mx-5 flex min-h-0 flex-1 flex-col bg-page pt-5">
@@ -39,7 +43,11 @@ export function ServicesLeaderboard({ services }: { services: ServiceRow[] }) {
               <span className="ml-[31px] w-[100px] shrink-0 text-positive">
                 <span className="font-bold">{service.price}</span> <span className="text-[11px]">SAR</span>
               </span>
-              <RowArrowButton tone="info" label={`View ${service.name}`} />
+              <RowArrowButton
+                tone="info"
+                label={`View ${service.name}`}
+                href={canAccessPath(`${basePath}/${service.id}`) ? `${basePath}/${service.id}` : undefined}
+              />
             </li>
           ))}
         </ul>

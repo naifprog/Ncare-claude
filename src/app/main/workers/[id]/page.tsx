@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BranchScope } from "@/components/auth/AccessProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { WorkerProfileView } from "@/components/workers/WorkerProfileView";
 import { getWorkerProfile, workerProfiles } from "@/lib/mock-data";
@@ -14,7 +15,9 @@ export default async function MainWorkerProfilePage({ params }: { params: Promis
 
   return (
     <AppShell title="Workers" role="main">
-      <WorkerProfileView worker={worker} basePath="/main/workers" />
+      <BranchScope branchIds={worker.branchIds}>
+        <WorkerProfileView worker={worker} basePath="/main/workers" branchIds={worker.branchIds} />
+      </BranchScope>
     </AppShell>
   );
 }

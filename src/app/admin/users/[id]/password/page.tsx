@@ -1,16 +1,16 @@
 import { notFound } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { ChangePasswordForm } from "@/components/settings/ChangePasswordForm";
-import { adminUsers, getAdminUser } from "@/lib/mock-admin";
+import { directoryUsers, getDirectoryUser } from "@/lib/access/directory";
 
 export function generateStaticParams() {
-  return adminUsers.map((u) => ({ id: u.id }));
+  return directoryUsers.map((u) => ({ id: u.id }));
 }
 
 /** "Update password" from a user profile (designs 57–59). */
 export default async function AdminUserPasswordPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  if (!getAdminUser(id)) notFound();
+  if (!getDirectoryUser(id)) notFound();
 
   return (
     <AppShell title="Users" role="admin">

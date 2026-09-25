@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { pickBranch, useBranchOptions, type BranchChoice } from "@/components/auth/AccessProvider";
 import {
   DateInput,
   DropdownSelect,
@@ -12,6 +13,7 @@ import {
   TextInput,
 } from "@/components/ui/Form";
 import { requestServiceFilters, workerProfiles } from "@/lib/mock-data";
+import { DEMO_NOTE, toast } from "@/lib/demo-state";
 import { toInputDate } from "@/lib/utils";
 import type { RequestDetails } from "@/types";
 
@@ -25,13 +27,18 @@ const WORKER_OPTIONS = workerProfiles.map((w) => ({ value: w.id, label: w.name, 
 export function RequestForm({
   request,
   basePath = "/requests",
-  branches,
+  branches: branchList,
+  defaultBranch,
 }: {
   request?: RequestDetails;
   basePath?: string;
-  branches?: string[];
+  /** Adds the Branch field (multi-branch owner / super admin, design 33). */
+  branches?: BranchChoice[] | "accessible";
+  /** Preselected branch of a new request (the branch tab it was opened from). */
+  defaultBranch?: string;
 }) {
   const router = useRouter();
+  const branches = useBranchOptions(branchList);
   const workerId = request ? workerProfiles.find((w) => w.name === request.workerName)?.id : undefined;
 
   const fields = [
@@ -42,8 +49,8 @@ export function RequestForm({
           name="branch"
           placeholder="Select branch"
           required
-          defaultValue={request?.branch}
-          options={branches.map((b) => ({ value: b, label: b }))}
+          defaultValue={pickBranch(branches, request?.branchId ?? request?.branch ?? defaultBranch)}
+          options={branches}
         />
       </FormField>
     ) : null,
@@ -91,7 +98,7 @@ export function RequestForm({
       <form
         onSubmit={(e) => {
           e.preventDefault();
-          // No backend yet — return to the list once the form is valid.
+          toast(`${request ? `Request ${request.num} updated` : "Request added"}. ${DEMO_NOTE}`);
           router.push(request ? `${basePath}/${request.id}` : basePath);
         }}
       >

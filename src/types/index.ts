@@ -35,7 +35,8 @@ export interface SalonRequest {
   time: string;
   status: RequestStatus;
   disabled?: boolean;
-  /** Owning branch (multi-branch owner role). */
+  /** Owning branch (multi-branch owner role): id + display name. */
+  branchId?: string;
   branch?: string;
 }
 
@@ -55,6 +56,8 @@ export interface WorkerProfile extends Worker {
   documents: WorkerDocument[];
   /** Colored ring + dot shown on the avatar in the design (meaning not specified there). */
   status?: "brand" | "orange";
+  /** Branches the worker works in (multi-branch owner). */
+  branchIds?: string[];
 }
 
 export interface SalonService {
@@ -65,6 +68,8 @@ export interface SalonService {
   price: number;
   workerIds: string[];
   imageUrl?: string;
+  /** Branches offering the service (multi-branch owner). */
+  branchIds?: string[];
 }
 
 export interface RequestLine {

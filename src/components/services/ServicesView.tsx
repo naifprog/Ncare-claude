@@ -5,12 +5,14 @@ import { useMemo, useState } from "react";
 import { PhotoAvatar } from "@/components/ui/Avatar";
 import { TableTag } from "@/components/ui/Badge";
 import { OutlineIconButton, outlineIconButtonClass } from "@/components/ui/Button";
-import { BranchTabs } from "@/components/main/BranchTabs";
+import { useAccess } from "@/components/auth/AccessProvider";
+import { BranchTabs, useBranchTab } from "@/components/main/BranchTabs";
 import { HeaderFilter } from "@/components/ui/HeaderFilter";
 import { Icon } from "@/components/ui/Icon";
 import { EmbeddedFrame, ListCard, ListToolbar } from "@/components/ui/ListToolbar";
 import { ExportMenu } from "@/components/ui/ExportMenu";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
+import { removeRecord, toast, useRemovedIds } from "@/lib/demo-state";
 import { serviceCategories } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { SalonService, WorkerProfile } from "@/types";
@@ -49,39 +51,50 @@ export function ServicesView({
   initialServices,
   workers,
   basePath = "/services",
-  branches,
+  branchScoped,
   actionLabel = "New service",
   actionHref,
   filters,
+  rowFilter,
   exportName,
   embedded,
 }: {
   initialServices: SalonService[];
   workers: WorkerProfile[];
   basePath?: string;
-  /** Multi-branch owner: branch selector under the toolbar (design 40). */
-  branches?: string[];
+  /** Multi-branch owner: branch selector (the user's branches) under the toolbar (design 40). */
+  branchScoped?: boolean;
   actionLabel?: string;
   /** Overrides the "New …" link target (defaults to `${basePath}/add`). */
   actionHref?: string;
   /** Filter row under the toolbar (super admin: salon / branch selects, designs 66, 67). */
   filters?: React.ReactNode;
+  /** Extra row filter (super admin salon / branch selects). */
+  rowFilter?: (row: SalonService) => boolean;
   /** Adds the orange export button to the Options header. */
   exportName?: string;
   /** Table + pagination only, for use inside another card (salon user tabs, designs 61, 62). */
   embedded?: boolean;
 }) {
-  const [rows, setRows] = useState(initialServices);
-  const [branch, setBranch] = useState(branches?.[1] ?? "");
+  const { branches, can } = useAccess();
+  const removed = useRemovedIds();
+  const [branch, setBranch] = useBranchTab(branches);
+  const scope = branchScoped ? branch : undefined;
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter(
-      (s) => (!q || s.name.toLowerCase().includes(q)) && (!category || s.category === category),
+    return initialServices.filter(
+      (s) =>
+        !removed.has(s.id) &&
+        (!branchScoped || !!s.branchIds?.includes(branch)) &&
+        (!rowFilter || rowFilter(s)) &&
+        (!q || s.name.toLowerCase().includes(q)) &&
+        (!category || s.category === category),
     );
-  }, [rows, query, category]);
+  }, [initialServices, removed, branchScoped, branch, rowFilter, query, category]);
+  const { pageRows, pagination } = usePagination(visible);
 
   const Frame = embedded ? EmbeddedFrame : ListCard;
 
@@ -92,17 +105,19 @@ export function ServicesView({
         query={query}
         onQueryChange={setQuery}
         actionLabel={actionLabel}
-        actionHref={actionHref ?? `${basePath}/add`}
+        actionHref={
+          can("services.add", scope) ? (actionHref ?? `${basePath}/add${scope ? `?branch=${scope}` : ""}`) : undefined
+        }
       />
       )}
 
       {filters ? <div className="mt-2.5">{filters}</div> : null}
 
-      {branches ? (
+      {branchScoped ? (
         <BranchTabs branches={branches} value={branch} onChange={setBranch} className="mt-2.5" />
       ) : null}
 
-      <div className={cn(branches || filters ? "mt-2.5" : embedded ? "mt-0" : "mt-5", "overflow-x-auto thin-scrollbar")}>
+      <div className={cn(branchScoped || filters ? "mt-2.5" : embedded ? "mt-0" : "mt-5", "overflow-x-auto thin-scrollbar")}>
         <table className="w-full min-w-[1004px] table-fixed border-collapse text-left text-sm text-ink">
           <colgroup>
             {COLUMNS.map((w, i) => (
@@ -134,7 +149,7 @@ export function ServicesView({
             </tr>
           </thead>
           <tbody>
-            {visible.map((service) => (
+            {pageRows.map((service) => (
               <tr key={service.id} className="h-[70px] border-b border-[#f2f2f2]">
                 <td className="pl-[29px]">{service.num}</td>
                 <td>
@@ -160,20 +175,27 @@ export function ServicesView({
                     >
                       <Icon name="eye" size={18} />
                     </Link>
-                    <Link
-                      href={`${basePath}/${service.id}/edit`}
-                      aria-label={`Edit ${service.name}`}
-                      className={outlineIconButtonClass("brand")}
-                    >
-                      <Icon name="edit" size={18} />
-                    </Link>
-                    <OutlineIconButton
-                      tone="negative"
-                      aria-label={`Delete ${service.name}`}
-                      onClick={() => setRows((r) => r.filter((s) => s.id !== service.id))}
-                    >
-                      <Icon name="trash" size={18} />
-                    </OutlineIconButton>
+                    {can("services.edit", scope) && (
+                      <Link
+                        href={`${basePath}/${service.id}/edit`}
+                        aria-label={`Edit ${service.name}`}
+                        className={outlineIconButtonClass("brand")}
+                      >
+                        <Icon name="edit" size={18} />
+                      </Link>
+                    )}
+                    {can("services.delete", scope) && (
+                      <OutlineIconButton
+                        tone="negative"
+                        aria-label={`Delete ${service.name}`}
+                        onClick={() => {
+                          removeRecord(service.id);
+                          toast(`Service ${service.num} deleted. Demo only: it returns after a reload.`);
+                        }}
+                      >
+                        <Icon name="trash" size={18} />
+                      </OutlineIconButton>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -189,7 +211,7 @@ export function ServicesView({
         </table>
       </div>
 
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </Frame>
   );
 }

@@ -26,7 +26,7 @@ export function ChangePasswordForm({
             setSaved(false);
             return;
           }
-          // No backend yet — just acknowledge the change.
+          // No backend yet: validate and acknowledge; demo account passwords never change.
           setError(null);
           setSaved(true);
           e.currentTarget.reset();
@@ -74,7 +74,7 @@ export function ChangePasswordForm({
           <SubmitButton>Save</SubmitButton>
           {saved && (
             <p role="status" className="mt-[31px] text-sm font-semibold text-positive">
-              Password updated.
+              Password updated (demo only, not saved).
             </p>
           )}
         </div>

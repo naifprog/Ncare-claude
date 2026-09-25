@@ -13,7 +13,7 @@ export function RequestsToolbar({
   to,
   onFromChange,
   onToChange,
-  addHref = "/requests/add",
+  addHref,
   variant = "salon",
   hideAction,
   suggestions = [],
@@ -24,6 +24,7 @@ export function RequestsToolbar({
   to: string;
   onFromChange: (value: string) => void;
   onToChange: (value: string) => void;
+  /** Target of "New request"; the button is hidden without it (no permission). */
   addHref?: string;
   /** "main": grey in-pill calendar icons and an orange "New request" (designs 32–36). */
   variant?: "salon" | "main";
@@ -39,7 +40,7 @@ export function RequestsToolbar({
         <DateRangeField label="From" value={from} onChange={onFromChange} subtle={variant === "main"} />
         <DateRangeField label="To" value={to} onChange={onToChange} subtle={variant === "main"} />
       </div>
-      {!hideAction && (
+      {!hideAction && addHref && (
       <Link
         href={addHref}
         className={cn(

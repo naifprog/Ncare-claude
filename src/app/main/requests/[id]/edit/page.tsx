@@ -1,17 +1,19 @@
 import { notFound } from "next/navigation";
+import { BranchScope } from "@/components/auth/AccessProvider";
 import { AppShell } from "@/components/layout/AppShell";
-import { BRANCH_TABS } from "@/lib/mock-main";
 import { RequestForm } from "@/components/requests/RequestForm";
-import { getRequestDetails } from "@/lib/mock-data";
+import { getMainRequestDetails } from "@/lib/mock-main";
 
 export default async function MainEditRequestPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
-  const request = getRequestDetails(id);
+  const request = getMainRequestDetails(id);
   if (!request) notFound();
 
   return (
     <AppShell title="Requests" role="main">
-      <RequestForm request={{ ...request, branch: BRANCH_TABS[0] }} basePath="/main/requests" branches={BRANCH_TABS} />
+      <BranchScope branchIds={request.branchId ? [request.branchId] : undefined}>
+        <RequestForm request={request} basePath="/main/requests" branches="accessible" />
+      </BranchScope>
     </AppShell>
   );
 }

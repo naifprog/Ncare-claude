@@ -1,24 +1,29 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { AccountTypeBadge } from "@/components/admin/AccountTypeBadge";
 import { RequestsTable } from "@/components/requests/RequestsTable";
 import { DataTable, EarningHeader, RowActions, type Column } from "@/components/ui/DataTable";
 import { ExportMenu } from "@/components/ui/ExportMenu";
 import { HeaderFilter } from "@/components/ui/HeaderFilter";
 import { ListCard, ListToolbar } from "@/components/ui/ListToolbar";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import { ServicesView } from "@/components/services/ServicesView";
 import { EarningsValue } from "@/components/workers/WorkerBits";
 import { WorkersView } from "@/components/workers/WorkersView";
+import { directoryUsers } from "@/lib/access/directory";
+import { removeRecord, toast, useRemovedIds } from "@/lib/demo-state";
 import {
   ACCOUNT_TYPES,
   BRANCH_FILTERS,
   SALON_FILTERS,
   TYPES_WITH_POWERS,
   adminBranches,
+  salonBranchOf,
+  type AdminBranch,
   type AdminSalon,
   type AdminUser,
 } from "@/lib/mock-admin";
@@ -33,6 +38,16 @@ function OptionsHeader({ name, rows }: { name: string; rows: Record<string, stri
   );
 }
 
+function deleteRecord(id: string, label: string) {
+  removeRecord(id);
+  toast(`${label} deleted. Demo only: it returns after a reload.`);
+}
+
+/** Directory account behind a salon row (profile / edit / powers links). */
+function salonUserId(salon: AdminSalon) {
+  return directoryUsers.find((u) => u.accountType === "Salon" && u.name === salon.name)?.id ?? "user-2";
+}
+
 /** Blank 30px slot keeping action columns aligned when a row has no "powers" button (design 51). */
 function PowersSpacer() {
   return <span className="inline-block h-[30px] w-[30px]" aria-hidden="true" />;
@@ -43,14 +58,21 @@ function PowersSpacer() {
 // ---------------------------------------------------------------------------
 
 export function UsersView({ initial }: { initial: AdminUser[] }) {
-  const [rows, setRows] = useState(initial);
+  const { can } = useAccess();
+  const removed = useRemovedIds();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<string | null>(null);
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((u) => (!q || u.name.toLowerCase().includes(q)) && (!type || u.accountType === type));
-  }, [rows, query, type]);
+    return initial.filter(
+      (u) =>
+        !removed.has(u.id) &&
+        (!q || u.name.toLowerCase().includes(q) || u.username?.includes(q)) &&
+        (!type || u.accountType === type),
+    );
+  }, [initial, removed, query, type]);
+  const { pageRows, pagination } = usePagination(visible);
 
   const columns: Column<AdminUser>[] = [
     { key: "num", header: "Num", width: "w-[160px]", render: (u) => u.num },
@@ -72,13 +94,13 @@ export function UsersView({ initial }: { initial: AdminUser[] }) {
       ),
       render: (u) => (
         <div className="flex items-center gap-2.5">
-          {TYPES_WITH_POWERS.includes(u.accountType) ? null : <PowersSpacer />}
+          {TYPES_WITH_POWERS.includes(u.accountType) && can("powers.manage") ? null : <PowersSpacer />}
           <RowActions
             label={u.name}
             powersHref={TYPES_WITH_POWERS.includes(u.accountType) ? `/admin/powers/add?user=${u.id}` : undefined}
             viewHref={`/admin/users/${u.id}`}
             editHref={`/admin/users/${u.id}/edit`}
-            onDelete={() => setRows((r) => r.filter((x) => x.id !== u.id))}
+            onDelete={can("users.delete") ? () => deleteRecord(u.id, u.name) : undefined}
           />
         </div>
       ),
@@ -89,9 +111,9 @@ export function UsersView({ initial }: { initial: AdminUser[] }) {
     <ListCard>
       <ListToolbar query={query} onQueryChange={setQuery} actionLabel="New User" actionHref="/admin/users/add" />
       <div className="mt-5">
-        <DataTable columns={columns} rows={visible} rowKey={(u) => u.id} emptyText="No users match your filters." />
+        <DataTable columns={columns} rows={pageRows} rowKey={(u) => u.id} emptyText="No users match your filters." />
       </div>
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </ListCard>
   );
 }
@@ -101,14 +123,18 @@ export function UsersView({ initial }: { initial: AdminUser[] }) {
 // ---------------------------------------------------------------------------
 
 export function SalonsView({ initial }: { initial: AdminSalon[] }) {
-  const [rows, setRows] = useState(initial);
+  const { can } = useAccess();
+  const removed = useRemovedIds();
   const [query, setQuery] = useState("");
   const [region, setRegion] = useState<string | null>(null);
 
-  const visible = rows.filter(
+  const visible = initial.filter(
     (s) =>
-      (!query.trim() || s.name.toLowerCase().includes(query.trim().toLowerCase())) && (!region || s.region === region),
+      !removed.has(s.id) &&
+      (!query.trim() || s.name.toLowerCase().includes(query.trim().toLowerCase()) || s.manager.toLowerCase().includes(query.trim().toLowerCase())) &&
+      (!region || s.region === region),
   );
+  const { pageRows, pagination } = usePagination(visible);
 
   const columns: Column<AdminSalon>[] = [
     { key: "num", header: "Num", width: "w-[103px]", render: (s) => s.num },
@@ -133,10 +159,10 @@ export function SalonsView({ initial }: { initial: AdminSalon[] }) {
       render: (s) => (
         <RowActions
           label={s.name}
-          powersHref={`/admin/powers/add?salon=${s.id}`}
-          viewHref="/admin/users/user-2"
-          editHref="/admin/users/user-2/edit"
-          onDelete={() => setRows((r) => r.filter((x) => x.id !== s.id))}
+          powersHref={`/admin/powers/add?user=${salonUserId(s)}`}
+          viewHref={`/admin/users/${salonUserId(s)}`}
+          editHref={can("salons.manage") ? `/admin/users/${salonUserId(s)}/edit` : undefined}
+          onDelete={can("salons.manage") ? () => deleteRecord(s.id, s.name) : undefined}
         />
       ),
     },
@@ -148,12 +174,12 @@ export function SalonsView({ initial }: { initial: AdminSalon[] }) {
         query={query}
         onQueryChange={setQuery}
         actionLabel="New Salon"
-        actionHref="/admin/users/add?type=Salon"
+        actionHref={can("salons.manage") ? "/admin/users/add?type=Salon" : undefined}
       />
       <div className="mt-5">
-        <DataTable columns={columns} rows={visible} rowKey={(s) => s.id} emptyText="No salons match your search." />
+        <DataTable columns={columns} rows={pageRows} rowKey={(s) => s.id} emptyText="No salons match your search." />
       </div>
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </ListCard>
   );
 }
@@ -162,22 +188,25 @@ export function SalonsView({ initial }: { initial: AdminSalon[] }) {
 // Branches of all salons (design 65)
 // ---------------------------------------------------------------------------
 
-type AdminBranch = (typeof adminBranches)[number];
-
 export function AdminBranchesView() {
-  const [rows, setRows] = useState(adminBranches);
+  const { can } = useAccess();
+  const removed = useRemovedIds();
   const [query, setQuery] = useState("");
   const [salon, setSalon] = useState<string | null>(null);
   const [region, setRegion] = useState<string | null>(null);
 
-  const visible = rows.filter(
+  const visible = adminBranches.filter(
     (b) =>
-      (!query.trim() || b.name.toLowerCase().includes(query.trim().toLowerCase())) && (!region || b.region === region),
+      !removed.has(b.id) &&
+      (!query.trim() || b.name.toLowerCase().includes(query.trim().toLowerCase())) &&
+      (!salon || b.salon === salon) &&
+      (!region || b.region === region),
   );
+  const { pageRows, pagination } = usePagination(visible);
 
   const columns: Column<AdminBranch>[] = [
     { key: "num", header: "Num", width: "w-[130px]", render: (b) => b.num },
-    { key: "salon", header: "Salon", width: "w-[151px]", render: (b) => salon ?? b.salon },
+    { key: "salon", header: "Salon", width: "w-[151px]", render: (b) => b.salon },
     { key: "name", header: "Branch name", width: "w-[210px]", render: (b) => b.name },
     {
       key: "region",
@@ -192,10 +221,10 @@ export function AdminBranchesView() {
       render: (b) => (
         <RowActions
           label={b.name}
-          powersHref={`/admin/powers/add?branch=${b.id}`}
+          powersHref="/admin/powers/add?user=user-3"
           viewHref="/admin/users/user-3"
-          editHref="/admin/users/user-3/edit"
-          onDelete={() => setRows((r) => r.filter((x) => x.id !== b.id))}
+          editHref={can("branches.edit") ? "/admin/users/user-3/edit" : undefined}
+          onDelete={can("branches.delete") ? () => deleteRecord(b.id, b.name) : undefined}
         />
       ),
     },
@@ -207,7 +236,7 @@ export function AdminBranchesView() {
         query={query}
         onQueryChange={setQuery}
         actionLabel="New Branch"
-        actionHref="/admin/users/add?type=Branch"
+        actionHref={can("branches.add") ? "/admin/users/add?type=Branch" : undefined}
         middle={
           <SearchSelect
             allLabel="All Salons"
@@ -219,9 +248,9 @@ export function AdminBranchesView() {
         }
       />
       <div className="mt-5">
-        <DataTable columns={columns} rows={visible} rowKey={(b) => b.id} emptyText="No branches match your search." />
+        <DataTable columns={columns} rows={pageRows} rowKey={(b) => b.id} emptyText="No branches match your filters." />
       </div>
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </ListCard>
   );
 }
@@ -230,38 +259,62 @@ export function AdminBranchesView() {
 // Services / workers of all salons (designs 66, 67)
 // ---------------------------------------------------------------------------
 
-function SalonBranchFilters() {
+/** "All Salons" / "All Branches" selects (designs 66–68); the branch list follows the chosen salon. */
+function useSalonBranchFilter() {
   const [salon, setSalon] = useState<string | null>(null);
   const [branch, setBranch] = useState<string | null>(null);
-  return (
+  const branchOptions = salon ? adminBranches.filter((b) => b.salon === salon).map((b) => b.name) : BRANCH_FILTERS;
+  const matches = useCallback(
+    (recordId: string) => {
+      const of = salonBranchOf(recordId);
+      return (!salon || of.salon === salon) && (!branch || of.branch === branch);
+    },
+    [salon, branch],
+  );
+  const filters = (
     <div className="grid gap-2.5 sm:grid-cols-2 sm:gap-5">
-      <SearchSelect allLabel="All Salons" options={SALON_FILTERS} value={salon} onChange={setSalon} />
-      <SearchSelect allLabel="All Branches" options={BRANCH_FILTERS} value={branch} onChange={setBranch} />
+      <SearchSelect
+        allLabel="All Salons"
+        options={SALON_FILTERS}
+        value={salon}
+        onChange={(v) => {
+          setSalon(v);
+          setBranch(null);
+        }}
+      />
+      <SearchSelect allLabel="All Branches" options={branchOptions} value={branch} onChange={setBranch} />
     </div>
   );
+  return { filters, matches, salon, branch };
 }
 
 export function AdminServicesView({ services, workers }: { services: SalonService[]; workers: WorkerProfile[] }) {
+  const { filters, matches } = useSalonBranchFilter();
+  const rowFilter = useCallback((s: SalonService) => matches(s.id), [matches]);
   return (
     <ServicesView
       initialServices={services}
       workers={workers}
       basePath="/admin/salons/services"
       actionLabel="New Service"
-      filters={<SalonBranchFilters />}
+      filters={filters}
+      rowFilter={rowFilter}
       exportName="services"
     />
   );
 }
 
 export function AdminWorkersView({ workers }: { workers: WorkerProfile[] }) {
+  const { filters, matches } = useSalonBranchFilter();
+  const rowFilter = useCallback((w: WorkerProfile) => matches(w.id), [matches]);
   return (
     <WorkersView
       initialWorkers={workers}
       basePath="/admin/salons/workers"
       actionLabel="New Worker"
       actionHref="/admin/users/add?type=Worker"
-      filters={<SalonBranchFilters />}
+      filters={filters}
+      rowFilter={rowFilter}
       exportName="workers"
     />
   );
@@ -279,15 +332,16 @@ const STATUS_LABELS: Record<RequestStatus, string> = {
 };
 
 export function AdminRequestsView({ data }: { data: Record<RequestStatus, SalonRequest[]> }) {
+  const { can } = useAccess();
   const [status, setStatus] = useState<RequestStatus>("new");
-  const [salon, setSalon] = useState<string | null>(null);
-  const [branch, setBranch] = useState<string | null>(null);
+  const { filters, matches } = useSalonBranchFilter();
   const [query, setQuery] = useState("");
   const [service, setService] = useState<string | null>(null);
   const [priority, setPriority] = useState<RequestPriority | null>(null);
 
   const rows = data[status].filter(
     (r) =>
+      matches(r.id) &&
       (!query.trim() || r.workerName.toLowerCase().includes(query.trim().toLowerCase()) || String(r.num).includes(query)) &&
       (!service || r.service === service) &&
       (!priority || r.priority === priority),
@@ -303,18 +357,19 @@ export function AdminRequestsView({ data }: { data: Record<RequestStatus, SalonR
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search .."
           aria-label="Search requests"
-          className="h-[50px] min-w-0 flex-1 rounded-pill bg-page px-[30px] text-sm text-ink placeholder:text-[#aeaeae] focus:outline focus:outline-brand"
+          className="h-[50px] min-w-0 shrink-0 rounded-pill sm:flex-1 bg-page px-[30px] text-sm text-ink placeholder:text-[#aeaeae] focus:outline focus:outline-brand"
         />
-        <Link
-          href="/admin/salons/requests/add"
-          className="inline-flex h-[50px] shrink-0 items-center justify-center rounded-pill bg-brand text-[15px] font-bold text-white shadow-card sm:w-[175px]"
-        >
-          New Request
-        </Link>
+        {can("requests.add") && (
+          <Link
+            href="/admin/salons/requests/add"
+            className="inline-flex h-[50px] shrink-0 items-center justify-center rounded-pill bg-brand text-[15px] font-bold text-white shadow-card sm:w-[175px]"
+          >
+            New Request
+          </Link>
+        )}
       </div>
-      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-3 sm:gap-5">
-        <SearchSelect allLabel="All Salons" options={SALON_FILTERS} value={salon} onChange={setSalon} />
-        <SearchSelect allLabel="All Branches" options={BRANCH_FILTERS} value={branch} onChange={setBranch} />
+      <div className="mt-2.5 grid gap-2.5 sm:grid-cols-[minmax(0,2fr)_minmax(0,1fr)] sm:gap-5">
+        {filters}
         <SearchSelect
           allLabel="New Requests"
           searchable={false}

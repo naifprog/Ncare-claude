@@ -1,10 +1,14 @@
+"use client";
+
+import { useAccess } from "@/components/auth/AccessProvider";
 import { RowArrowButton } from "@/components/dashboard/RowArrowButton";
 import { PhotoAvatar } from "@/components/ui/Avatar";
 import { PalestineFlag } from "@/components/ui/DesignIcons";
 import { Icon } from "@/components/ui/Icon";
 import type { Worker } from "@/types";
 
-export function WorkersLeaderboard({ workers }: { workers: Worker[] }) {
+export function WorkersLeaderboard({ workers, basePath = "/workers" }: { workers: Worker[]; basePath?: string }) {
+  const { canAccessPath } = useAccess();
   return (
     <section className="mx-5 flex flex-col pt-5">
       <h2 className="pl-[30px] text-[15px] font-bold leading-5 text-ink">Workers sort by most earnings</h2>
@@ -36,7 +40,12 @@ export function WorkersLeaderboard({ workers }: { workers: Worker[] }) {
                   <span className="text-[11px]">{worker.currency}</span>
                 </span>
               </span>
-              <RowArrowButton tone="orange" label={`View ${worker.name}`} className="ml-[31px]" />
+              <RowArrowButton
+                tone="orange"
+                label={`View ${worker.name}`}
+                href={canAccessPath(`${basePath}/${worker.id}`) ? `${basePath}/${worker.id}` : undefined}
+                className="ml-[31px]"
+              />
             </li>
           ))}
         </ul>

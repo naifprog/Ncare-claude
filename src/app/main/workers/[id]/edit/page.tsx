@@ -1,8 +1,8 @@
 import { notFound } from "next/navigation";
+import { BranchScope } from "@/components/auth/AccessProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { WorkerForm } from "@/components/workers/WorkerForm";
 import { getWorkerProfile, workerProfiles } from "@/lib/mock-data";
-import { BRANCH_TABS } from "@/lib/mock-main";
 
 export function generateStaticParams() {
   return workerProfiles.map((w) => ({ id: w.id }));
@@ -15,7 +15,9 @@ export default async function MainEditWorkerPage({ params }: { params: Promise<{
 
   return (
     <AppShell title="Workers" role="main">
-      <WorkerForm worker={worker} basePath="/main/workers" branches={BRANCH_TABS} />
+      <BranchScope branchIds={worker.branchIds}>
+        <WorkerForm worker={worker} basePath="/main/workers" branches="accessible" />
+      </BranchScope>
     </AppShell>
   );
 }

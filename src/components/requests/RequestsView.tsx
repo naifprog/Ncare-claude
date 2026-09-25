@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { RequestsTable } from "@/components/requests/RequestsTable";
 import { RequestsToolbar } from "@/components/requests/RequestsToolbar";
 import { cn, toInputDate } from "@/lib/utils";
@@ -18,6 +19,7 @@ export function RequestsView({
 }: {
   data: Record<RequestStatus, SalonRequest[]>;
 }) {
+  const { can } = useAccess();
   const [activeTab, setActiveTab] = useState<RequestStatus>("new");
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
@@ -61,6 +63,7 @@ export function RequestsView({
         onFromChange={setFrom}
         onToChange={setTo}
         suggestions={suggestions}
+        addHref={can("requests.add") ? "/requests/add" : undefined}
       />
 
       <div role="tablist" className="mt-2.5 grid grid-cols-2 gap-2.5 sm:grid-cols-4 sm:gap-6">

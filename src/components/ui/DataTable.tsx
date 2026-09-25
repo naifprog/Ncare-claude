@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { OutlineIconButton, outlineIconButtonClass } from "@/components/ui/Button";
 import { FlashIcon, ImportIcon, PrinterIcon } from "@/components/ui/DesignIcons";
 import { Icon } from "@/components/ui/Icon";
@@ -79,7 +80,10 @@ export function DataTable<T>({
   );
 }
 
-/** Row action buttons used across the design's tables. */
+/**
+ * Row action buttons used across the design's tables. Links the signed-in user may
+ * not open are left out; callers pass callbacks only when the action is permitted.
+ */
 export function RowActions({
   label,
   powersHref,
@@ -101,6 +105,11 @@ export function RowActions({
   onDownload?: () => void;
   onPrint?: () => void;
 }) {
+  const { canAccessPath } = useAccess();
+  const allowed = (href?: string) => (href && canAccessPath(href) ? href : undefined);
+  powersHref = allowed(powersHref);
+  viewHref = allowed(viewHref);
+  editHref = allowed(editHref);
   return (
     <div className="flex items-center gap-2.5">
       {powersHref && (

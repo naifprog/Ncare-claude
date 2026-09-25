@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BranchScope } from "@/components/auth/AccessProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { ServiceDetailsView } from "@/components/services/ServiceDetailsView";
 import { getSalonService, salonServices, workerProfiles } from "@/lib/mock-data";
@@ -14,12 +15,15 @@ export default async function MainServiceDetailsPage({ params }: { params: Promi
 
   return (
     <AppShell title="Services" role="main">
-      <ServiceDetailsView
-        service={service}
-        workers={workerProfiles.filter((w) => service.workerIds.includes(w.id))}
-        basePath="/main/services"
-        workersPath="/main/workers"
-      />
+      <BranchScope branchIds={service.branchIds}>
+        <ServiceDetailsView
+          service={service}
+          workers={workerProfiles.filter((w) => service.workerIds.includes(w.id))}
+          basePath="/main/services"
+          workersPath="/main/workers"
+          branchIds={service.branchIds}
+        />
+      </BranchScope>
     </AppShell>
   );
 }

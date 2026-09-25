@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { RowArrowIcon, rowArrowClass } from "@/components/dashboard/RowArrowButton";
 import { PhotoAvatar } from "@/components/ui/Avatar";
 import { Icon } from "@/components/ui/Icon";
 import { PriceValue } from "@/components/services/ServicesView";
+import { removeRecord, toast } from "@/lib/demo-state";
 import { cn } from "@/lib/utils";
 import type { SalonService, WorkerProfile } from "@/types";
 
@@ -19,13 +21,18 @@ export function ServiceDetailsView({
   workers,
   basePath = "/services",
   workersPath = "/workers",
+  branchIds,
 }: {
   service: SalonService;
   workers: WorkerProfile[];
   basePath?: string;
   workersPath?: string;
+  /** Branches offering the service (multi-branch owner): actions follow those branches' powers. */
+  branchIds?: string[];
 }) {
   const router = useRouter();
+  const { can, canAccessBranch, canAccessPath } = useAccess();
+  const scope = branchIds?.find(canAccessBranch);
 
   return (
     <section className="grid grid-cols-[minmax(0,1fr)] gap-[21px] rounded-card bg-card px-4 pb-[30px] pt-[29px] shadow-card sm:px-[30px] xl:min-h-[calc(100vh-151px)] xl:grid-cols-[minmax(0,1fr)_221px] xl:content-start">
@@ -52,9 +59,11 @@ export function ServiceDetailsView({
               <li key={worker.id} className="flex h-[50px] items-center gap-4 rounded-[5px] bg-card px-2.5">
                 <PhotoAvatar size={40} tint={i} status={worker.status} />
                 <span className="flex-1 truncate text-lg">{worker.name}</span>
-                <Link href={`${workersPath}/${worker.id}`} aria-label={`View ${worker.name}`} className={rowArrowClass("orange")}>
-                  <RowArrowIcon />
-                </Link>
+                {canAccessPath(`${workersPath}/${worker.id}`) && (
+                  <Link href={`${workersPath}/${worker.id}`} aria-label={`View ${worker.name}`} className={rowArrowClass("orange")}>
+                    <RowArrowIcon />
+                  </Link>
+                )}
               </li>
             ))}
           </ul>
@@ -62,12 +71,24 @@ export function ServiceDetailsView({
       </div>
 
       <div className="flex flex-col gap-5">
-        <Link href={`${basePath}/${service.id}/edit`} className={cn(ACTION, "bg-info")}>
-          Edit
-        </Link>
-        <button type="button" onClick={() => router.push(basePath)} className={cn(ACTION, "bg-negative")}>
-          Delete
-        </button>
+        {can("services.edit", scope) && (
+          <Link href={`${basePath}/${service.id}/edit`} className={cn(ACTION, "bg-info")}>
+            Edit
+          </Link>
+        )}
+        {can("services.delete", scope) && (
+          <button
+            type="button"
+            onClick={() => {
+              removeRecord(service.id);
+              toast(`Service ${service.num} deleted. Demo only: it returns after a reload.`);
+              router.push(basePath);
+            }}
+            className={cn(ACTION, "bg-negative")}
+          >
+            Delete
+          </button>
+        )}
       </div>
     </section>
   );

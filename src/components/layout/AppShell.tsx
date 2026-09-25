@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AccessBoundary, RouteGuard } from "@/components/auth/AccessProvider";
 import { Header } from "@/components/layout/Header";
 import { Sidebar } from "@/components/layout/Sidebar";
 import type { Role } from "@/lib/roles";
@@ -14,6 +15,16 @@ export function AppShell({
   role?: Role;
   children: React.ReactNode;
 }) {
+  return (
+    <AccessBoundary context={role}>
+      <ShellLayout title={title} role={role}>
+        <RouteGuard>{children}</RouteGuard>
+      </ShellLayout>
+    </AccessBoundary>
+  );
+}
+
+function ShellLayout({ title, role, children }: { title: string; role: Role; children: React.ReactNode }) {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   return (

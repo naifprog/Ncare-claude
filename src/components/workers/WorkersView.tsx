@@ -5,12 +5,14 @@ import { useMemo, useState } from "react";
 import { PhotoAvatar } from "@/components/ui/Avatar";
 import { TableTag } from "@/components/ui/Badge";
 import { OutlineIconButton, outlineIconButtonClass } from "@/components/ui/Button";
-import { BranchTabs } from "@/components/main/BranchTabs";
+import { useAccess } from "@/components/auth/AccessProvider";
+import { BranchTabs, useBranchTab } from "@/components/main/BranchTabs";
 import { HeaderFilter } from "@/components/ui/HeaderFilter";
 import { Icon } from "@/components/ui/Icon";
 import { EmbeddedFrame, ListCard, ListToolbar } from "@/components/ui/ListToolbar";
 import { ExportMenu } from "@/components/ui/ExportMenu";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
+import { removeRecord, toast, useRemovedIds } from "@/lib/demo-state";
 import { EarningsValue, NationalityChip } from "@/components/workers/WorkerBits";
 import { nationalities, positions } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
@@ -22,29 +24,34 @@ const COLUMNS = ["w-[202px]", "w-[146px]", "w-[192px]", "w-[157px]", "w-[171px]"
 export function WorkersView({
   initialWorkers,
   basePath = "/workers",
-  branches,
+  branchScoped,
   actionLabel = "New worker",
   actionHref,
   filters,
+  rowFilter,
   exportName,
   embedded,
 }: {
   initialWorkers: WorkerProfile[];
   basePath?: string;
-  /** Multi-branch owner: branch selector under the toolbar (designs 37, 38). */
-  branches?: string[];
+  /** Multi-branch owner: branch selector (the user's branches) under the toolbar (designs 37, 38). */
+  branchScoped?: boolean;
   actionLabel?: string;
   /** Overrides the "New …" link target (defaults to `${basePath}/add`). */
   actionHref?: string;
   /** Filter row under the toolbar (super admin: salon / branch selects, designs 66, 67). */
   filters?: React.ReactNode;
+  /** Extra row filter (super admin salon / branch selects). */
+  rowFilter?: (row: WorkerProfile) => boolean;
   /** Adds the orange export button to the Options header. */
   exportName?: string;
   /** Table + pagination only, for use inside another card (salon user tabs, designs 61, 62). */
   embedded?: boolean;
 }) {
-  const [rows, setRows] = useState(initialWorkers);
-  const [branch, setBranch] = useState(branches?.[1] ?? "");
+  const { branches, can } = useAccess();
+  const removed = useRemovedIds();
+  const [branch, setBranch] = useBranchTab(branches);
+  const scope = branchScoped ? branch : undefined;
   const [query, setQuery] = useState("");
   const [nationality, setNationality] = useState<string | null>(null);
   const [position, setPosition] = useState<string | null>(null);
@@ -52,15 +59,19 @@ export function WorkersView({
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const filtered = rows.filter(
+    const filtered = initialWorkers.filter(
       (w) =>
+        !removed.has(w.id) &&
+        (!branchScoped || !!w.branchIds?.includes(branch)) &&
+        (!rowFilter || rowFilter(w)) &&
         (!q || w.name.toLowerCase().includes(q) || w.idNumber.includes(q)) &&
         (!nationality || w.nationality === nationality) &&
         (!position || w.role === position),
     );
     if (sortDesc === null) return filtered;
     return [...filtered].sort((a, b) => (sortDesc ? b.earnings - a.earnings : a.earnings - b.earnings));
-  }, [rows, query, nationality, position, sortDesc]);
+  }, [initialWorkers, removed, branchScoped, branch, rowFilter, query, nationality, position, sortDesc]);
+  const { pageRows, pagination } = usePagination(visible);
 
   const Frame = embedded ? EmbeddedFrame : ListCard;
 
@@ -71,17 +82,19 @@ export function WorkersView({
         query={query}
         onQueryChange={setQuery}
         actionLabel={actionLabel}
-        actionHref={actionHref ?? `${basePath}/add`}
+        actionHref={
+          can("workers.add", scope) ? (actionHref ?? `${basePath}/add${scope ? `?branch=${scope}` : ""}`) : undefined
+        }
       />
       )}
 
       {filters ? <div className="mt-2.5">{filters}</div> : null}
 
-      {branches ? (
+      {branchScoped ? (
         <BranchTabs branches={branches} value={branch} onChange={setBranch} className="mt-2.5" />
       ) : null}
 
-      <div className={cn(branches || filters ? "mt-2.5" : embedded ? "mt-0" : "mt-5", "overflow-x-auto thin-scrollbar")}>
+      <div className={cn(branchScoped || filters ? "mt-2.5" : embedded ? "mt-0" : "mt-5", "overflow-x-auto thin-scrollbar")}>
         <table className="w-full min-w-[1004px] table-fixed border-collapse text-left text-sm text-ink">
           <colgroup>
             {COLUMNS.map((w, i) => (
@@ -130,7 +143,7 @@ export function WorkersView({
             </tr>
           </thead>
           <tbody>
-            {visible.map((worker, i) => (
+            {pageRows.map((worker, i) => (
               <tr key={worker.id} className="h-[70px] border-b border-[#f2f2f2]">
                 <td className="pl-5">
                   <Link href={`${basePath}/${worker.id}`} className="flex items-center gap-2.5 hover:underline">
@@ -157,20 +170,27 @@ export function WorkersView({
                     >
                       <Icon name="eye" size={18} />
                     </Link>
-                    <Link
-                      href={`${basePath}/${worker.id}/edit`}
-                      aria-label={`Edit ${worker.name}`}
-                      className={outlineIconButtonClass("brand")}
-                    >
-                      <Icon name="edit" size={18} />
-                    </Link>
-                    <OutlineIconButton
-                      tone="negative"
-                      aria-label={`Delete ${worker.name}`}
-                      onClick={() => setRows((r) => r.filter((w) => w.id !== worker.id))}
-                    >
-                      <Icon name="trash" size={18} />
-                    </OutlineIconButton>
+                    {can("workers.edit", scope) && (
+                      <Link
+                        href={`${basePath}/${worker.id}/edit`}
+                        aria-label={`Edit ${worker.name}`}
+                        className={outlineIconButtonClass("brand")}
+                      >
+                        <Icon name="edit" size={18} />
+                      </Link>
+                    )}
+                    {can("workers.delete", scope) && (
+                      <OutlineIconButton
+                        tone="negative"
+                        aria-label={`Delete ${worker.name}`}
+                        onClick={() => {
+                          removeRecord(worker.id);
+                          toast(`${worker.name} deleted. Demo only: the worker returns after a reload.`);
+                        }}
+                      >
+                        <Icon name="trash" size={18} />
+                      </OutlineIconButton>
+                    )}
                   </div>
                 </td>
               </tr>
@@ -186,7 +206,7 @@ export function WorkersView({
         </table>
       </div>
 
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </Frame>
   );
 }

@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Ncare | Admin login" };
 export default function AdminLoginPage() {
   return (
     <Suspense>
-      <LoginView photo="/images/login-admin.jpg" home="/admin" />
+      <LoginView photo="/images/login-admin.jpg" />
     </Suspense>
   );
 }

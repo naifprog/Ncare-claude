@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState, type ComponentType } from "react";
 import {
   BarcodeIcon,
@@ -14,8 +14,11 @@ import {
   Setting2Icon,
   ThreeSquareIcon,
 } from "@/components/ui/DesignIcons";
+import { useNav } from "@/components/auth/AccessProvider";
 import { Icon } from "@/components/ui/Icon";
-import { NAV, ROLE_HOME, ROLE_LOGIN, type NavIconName, type Role } from "@/lib/roles";
+import { loginPathFor } from "@/lib/access/access";
+import { signOut } from "@/lib/demo-state";
+import { ROLE_HOME, type NavIconName, type Role } from "@/lib/roles";
 import { cn } from "@/lib/utils";
 
 function DashboardIcon({ size }: { size?: number }) {
@@ -51,7 +54,9 @@ const PILL = "rounded-l-[5px] rounded-r-[25px]";
 
 export function Sidebar({ onNavigate, role = "salon" }: { onNavigate?: () => void; role?: Role }) {
   const pathname = usePathname();
-  const items = NAV[role];
+  const router = useRouter();
+  // Only the sections the signed-in user may open (see src/lib/access).
+  const items = useNav();
   const home = ROLE_HOME[role];
   // Open the submenu of the section being viewed; everything is collapsed on the dashboard.
   const [expanded, setExpanded] = useState<string | null>(
@@ -131,9 +136,13 @@ export function Sidebar({ onNavigate, role = "salon" }: { onNavigate?: () => voi
       </nav>
 
       <div className="pb-[50px] pl-10 pr-[40px] pt-5">
-        <Link
-          href={ROLE_LOGIN[role]}
-          onClick={onNavigate}
+        <button
+          type="button"
+          onClick={() => {
+            onNavigate?.();
+            signOut();
+            router.replace(loginPathFor(role));
+          }}
           className={cn(
             "flex h-[50px] w-full items-center gap-[17px] bg-tint-rose pl-4 text-[15px] text-negative transition-opacity hover:opacity-90",
             PILL,
@@ -141,7 +150,7 @@ export function Sidebar({ onNavigate, role = "salon" }: { onNavigate?: () => voi
         >
           <Icon name="logout" size={18} />
           Log out
-        </Link>
+        </button>
       </div>
     </div>
   );

@@ -3,14 +3,15 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { useAccess } from "@/components/auth/AccessProvider";
 import { ChatPanel } from "@/components/layout/ChatPanel";
 import { Avatar } from "@/components/ui/Avatar";
 import { CaretDownIcon, SmsBoldIcon } from "@/components/ui/DesignIcons";
 import { Icon } from "@/components/ui/Icon";
 import { Toggle } from "@/components/ui/Toggle";
 import { cn } from "@/lib/utils";
-import { currentUser, messages, notifications, salonStatus } from "@/lib/mock-data";
-import { ROLE_USER, type Role } from "@/lib/roles";
+import { messages, notifications, salonStatus } from "@/lib/mock-data";
+import type { Role } from "@/lib/roles";
 import type { MessageItem } from "@/types";
 
 function useOutsidePanel() {
@@ -30,7 +31,7 @@ export function Header({
   onMenuClick?: () => void;
 }) {
   const isAdmin = role === "admin";
-  const user = ROLE_USER[role];
+  const { user, can } = useAccess();
   const { open, toggle, close } = useOutsidePanel();
   const [chatWith, setChatWith] = useState<MessageItem | null>(null);
   const closeAll = () => {
@@ -56,6 +57,7 @@ export function Header({
 
       {/* Popovers are anchored to the header card's right edge, 75px down (designs 2–4). */}
       <div className="flex items-center gap-[5px]">
+        {can("notifications.view") && (
         <button
           type="button"
           onClick={() => toggle("notifications")}
@@ -66,7 +68,9 @@ export function Header({
           <Icon name="bell" size={24} />
           {unreadNotifications > 0 && <CountBadge count={unreadNotifications} />}
         </button>
+        )}
 
+        {can("messages.view") && (
         <button
           type="button"
           onClick={() => {
@@ -80,6 +84,7 @@ export function Header({
           <SmsBoldIcon size={24} />
           {unreadMessages > 0 && <CountBadge count={unreadMessages} />}
         </button>
+        )}
 
         {role === "salon" ? (
           <button
@@ -89,7 +94,7 @@ export function Header({
             className="flex h-[50px] items-center gap-4 rounded-[5px] bg-page px-5 sm:w-[169px]"
           >
             <Image src="/images/salon-mark.png" alt="" width={20} height={24} />
-            <span className="hidden flex-1 whitespace-nowrap text-left text-xs text-ink sm:inline">{currentUser.name}</span>
+            <span className="hidden flex-1 truncate whitespace-nowrap text-left text-xs text-ink sm:inline">{user.name}</span>
             <CaretDownIcon
               className={cn("hidden text-ink transition-transform sm:inline", open === "user" && "rotate-180")}
             />
@@ -109,7 +114,7 @@ export function Header({
         <Panel
           onClose={closeAll}
           title="Notifications"
-          headerAction={isAdmin ? <Link href="/admin/notifications" onClick={closeAll}>All</Link> : "All"}
+          headerAction={isAdmin ? <Link href="/admin/notifications" onClick={closeAll}>All</Link> : undefined}
         >
           <ul className="max-h-[560px] space-y-[15px] overflow-y-auto px-5 pb-5 thin-scrollbar">
             {notifications.map((n) => (
@@ -124,7 +129,7 @@ export function Header({
               </li>
             ))}
           </ul>
-          {isAdmin && (
+          {isAdmin && can("notifications.send") && (
             // Super Admin: create notifications from here (design 84).
             <div className="flex justify-center pb-[18px]">
               <Link
@@ -141,7 +146,7 @@ export function Header({
 
       {open === "messages" && chatWith && (
         <Panel onClose={closeAll}>
-          <ChatPanel contact={chatWith} onBack={() => setChatWith(null)} />
+          <ChatPanel contact={chatWith} onBack={() => setChatWith(null)} canSend={can("messages.send")} />
         </Panel>
       )}
 
@@ -150,13 +155,11 @@ export function Header({
           onClose={closeAll}
           title="Messages"
           headerAction={
-            isAdmin ? (
+            isAdmin && can("messages.send") ? (
               <Link href="/admin/messages/new" onClick={closeAll}>
                 New message
               </Link>
-            ) : (
-              "All"
-            )
+            ) : undefined
           }
         >
           <ul className="max-h-[560px] space-y-[11px] overflow-y-auto px-5 pb-5 thin-scrollbar">
@@ -205,7 +208,7 @@ export function Header({
 
       {open === "user" && (
         <Panel onClose={closeAll}>
-          <SalonStatusPanel />
+          <SalonStatusPanel canToggle={can("settings.profileHours")} />
         </Panel>
       )}
     </header>
@@ -213,7 +216,7 @@ export function Header({
 }
 
 /** User menu content: salon open/closed switch and today's profit (SalonStatus frame, design 4). */
-function SalonStatusPanel() {
+function SalonStatusPanel({ canToggle }: { canToggle: boolean }) {
   const [isOpen, setIsOpen] = useState(salonStatus.open);
   const rows = [
     { label: "The daily profit:", value: salonStatus.dailyProfit },
@@ -225,8 +228,7 @@ function SalonStatusPanel() {
     <div className="p-[17px] text-sm text-ink">
       <div className="flex h-[50px] items-center justify-between rounded-[5px] bg-page pl-[27px] pr-[35px]">
         <span>Salon status: {isOpen ? "Open" : "Closed"}</span>
-        <Toggle checked={isOpen} onChange={setIsOpen} label="Salon open" />
-
+        <Toggle checked={isOpen} onChange={setIsOpen} label="Salon open" disabled={!canToggle} />
       </div>
       <dl className="space-y-[13px] px-[27px] pb-2.5 pt-7">
         {rows.map((r) => (

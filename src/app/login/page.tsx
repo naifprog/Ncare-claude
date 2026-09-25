@@ -8,7 +8,7 @@ export const metadata: Metadata = { title: "Ncare | Login" };
 export default function LoginPage() {
   return (
     <Suspense>
-      <LoginView photo="/images/login-salon.jpg" home="/" />
+      <LoginView photo="/images/login-salon.jpg" />
     </Suspense>
   );
 }

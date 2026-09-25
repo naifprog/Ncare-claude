@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { BranchScope } from "@/components/auth/AccessProvider";
 import { AppShell } from "@/components/layout/AppShell";
 import { BranchProfileView } from "@/components/main/BranchProfileView";
 import { branches, getBranch } from "@/lib/mock-main";
@@ -14,7 +15,9 @@ export default async function BranchProfilePage({ params }: { params: Promise<{ 
 
   return (
     <AppShell title="Branches" role="main">
-      <BranchProfileView branch={branch} />
+      <BranchScope branchIds={[branch.id]}>
+        <BranchProfileView branch={branch} />
+      </BranchScope>
     </AppShell>
   );
 }

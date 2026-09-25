@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { BranchTabs, StatusDropdown } from "@/components/main/BranchTabs";
+import { useAccess } from "@/components/auth/AccessProvider";
+import { BranchTabs, StatusDropdown, useBranchTab } from "@/components/main/BranchTabs";
 import { RequestsTable } from "@/components/requests/RequestsTable";
 import { RequestsToolbar } from "@/components/requests/RequestsToolbar";
-import { BRANCH_TABS } from "@/lib/mock-main";
 import { toInputDate } from "@/lib/utils";
 import type { RequestPriority, RequestStatus, SalonRequest } from "@/types";
 
@@ -17,8 +17,9 @@ const STATUS_OPTIONS: { value: RequestStatus; label: string; className: string }
 
 /** Requests of the multi-branch owner (designs 32, 34, 35, 36): status dropdown + branch tabs. */
 export function MainRequestsView({ data }: { data: Record<RequestStatus, SalonRequest[]> }) {
+  const { branches, can } = useAccess();
   const [status, setStatus] = useState<RequestStatus>("new");
-  const [branch, setBranch] = useState(BRANCH_TABS[1]);
+  const [branch, setBranch] = useBranchTab(branches);
   const [query, setQuery] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -35,9 +36,8 @@ export function MainRequestsView({ data }: { data: Record<RequestStatus, SalonRe
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    // Demo data: every branch shows the same sample requests.
     return data[status]
-      .map((r) => ({ ...r, branch }))
+      .filter((r) => r.branchId === branch)
       .filter((r) => {
         const iso = toInputDate(r.date);
         return (
@@ -64,13 +64,13 @@ export function MainRequestsView({ data }: { data: Record<RequestStatus, SalonRe
         onFromChange={setFrom}
         onToChange={setTo}
         suggestions={suggestions}
-        addHref="/main/requests/add"
+        addHref={can("requests.add", branch) ? `/main/requests/add?branch=${branch}` : undefined}
         variant="main"
       />
 
       <div className="mt-2.5 flex flex-col gap-2.5 sm:flex-row sm:gap-[23px]">
         <StatusDropdown options={STATUS_OPTIONS} value={status} onChange={setStatus} />
-        <BranchTabs branches={BRANCH_TABS} value={branch} onChange={setBranch} className="flex-1" />
+        <BranchTabs branches={branches} value={branch} onChange={setBranch} className="flex-1" />
       </div>
 
       <RequestsTable

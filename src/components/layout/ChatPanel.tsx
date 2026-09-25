@@ -31,12 +31,15 @@ export function ChatPanel({
   onBack,
   variant = "popover",
   initialThread = chatThread,
+  canSend = true,
 }: {
   contact: MessageItem;
   onBack?: () => void;
   /** "page": full-height column of the admin messages screen (designs 82, 83). */
   variant?: "popover" | "page";
   initialThread?: ChatMessage[];
+  /** Without the "send messages" permission the composer is read-only. */
+  canSend?: boolean;
 }) {
   const isPage = variant === "page";
   const [thread, setThread] = useState<ChatMessage[]>(initialThread);
@@ -153,7 +156,7 @@ export function ChatPanel({
           send();
         }}
       >
-        <div className="flex h-10 flex-1 items-center overflow-hidden rounded-full bg-card">
+        <fieldset disabled={!canSend} className="flex h-10 min-w-0 flex-1 items-center overflow-hidden rounded-full bg-card disabled:opacity-60">
           <label className="flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded-l-full bg-info text-white">
             <GalleryBoldIcon size={20} />
             <span className="sr-only">Send an image</span>
@@ -171,15 +174,16 @@ export function ChatPanel({
           <input
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            placeholder="Message"
+            placeholder={canSend ? "Message" : "You can read but not send messages"}
             aria-label="Message"
             className="h-full min-w-0 flex-1 bg-transparent px-[30px] text-sm text-ink placeholder:text-[#aeaeae] focus:outline-none"
           />
-        </div>
+        </fieldset>
         <button
           type="submit"
+          disabled={!canSend}
           aria-label="Send"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info text-white transition-opacity hover:opacity-90"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-info text-white transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           <SendBoldIcon size={22} />
         </button>

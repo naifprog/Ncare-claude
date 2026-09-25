@@ -1,4 +1,4 @@
-﻿import { AppShell } from "@/components/layout/AppShell";
+import { AppShell } from "@/components/layout/AppShell";
 import { BranchForm } from "@/components/main/BranchForm";
 
 export default function AddBranchPage() {

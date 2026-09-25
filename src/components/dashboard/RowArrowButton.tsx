@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Icon } from "@/components/ui/Icon";
 import { cn } from "@/lib/utils";
 
@@ -14,18 +15,22 @@ export function RowArrowIcon() {
   return <Icon name="arrowRightLine" size={20} />;
 }
 
+/** Row "→" link; rendered as a spacer when the target is not available to the user. */
 export function RowArrowButton({
   tone,
   label,
+  href,
   className,
 }: {
   tone: "orange" | "info";
   label: string;
+  href?: string;
   className?: string;
 }) {
+  if (!href) return <span aria-hidden="true" className={cn(rowArrowClass(tone, className), "invisible")} />;
   return (
-    <button type="button" aria-label={label} className={rowArrowClass(tone, className)}>
+    <Link href={href} aria-label={label} className={rowArrowClass(tone, className)}>
       <RowArrowIcon />
-    </button>
+    </Link>
   );
 }

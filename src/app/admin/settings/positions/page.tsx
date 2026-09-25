@@ -12,6 +12,8 @@ export default function AdminPositionsPage() {
         nameHeader="Position Name"
         initial={positionRows}
         exportName="positions"
+        powersHref="/admin/powers/add?position={id}"
+        editPermission="settings.edit"
       />
     </AppShell>
   );

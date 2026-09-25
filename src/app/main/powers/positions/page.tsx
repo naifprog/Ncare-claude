@@ -11,6 +11,8 @@ export default function MainPositionsPage() {
         placeholder="Enter position name"
         nameHeader="Position Name"
         initial={positionRows}
+        powersHref="/main/powers/positions/{id}"
+        editPermission="powers.manage"
       />
     </AppShell>
   );

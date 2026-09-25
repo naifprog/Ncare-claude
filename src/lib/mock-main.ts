@@ -2,18 +2,23 @@
  * Mock data for the "Main Salon UI" (multi-branch owner, design screens 26–47).
  */
 import {
+  buildRequestDetails,
   completedRequests,
   incompleteRequests,
   newRequests,
   pendingRequests,
 } from "@/lib/mock-data";
-import type { RequestStatus, SalonRequest, StatItem } from "@/types";
+import type { RequestStatus, SalonRequest } from "@/types";
 
 export interface Branch {
   id: string;
   num: number;
   name: string;
-  manager: string;
+  /**
+   * Users managing the branch. A branch may have zero, one or several managers;
+   * each manager is a regular user (see `src/lib/access/directory.ts`).
+   */
+  managerIds: string[];
   region: string;
   earnings: number;
   earningsTrend: "up" | "down";
@@ -34,14 +39,26 @@ const MONTHLY: Branch["monthlyEarnings"] = [
   { month: "May 2022", amount: "240,000", trend: "up" },
 ];
 
+/** Manager assignments: branch 1 has two managers, the new branch 6 has none yet. */
+const BRANCH_MANAGERS: string[][] = [
+  ["staff-ahmed-salama", "demo-manager"],
+  ["demo-manager"],
+  ["staff-ahmed-salama"],
+  ["staff-ahmed-salim"],
+  ["staff-ahmed-salama"],
+  [],
+];
+const EARNINGS = [1440, 1380, 1210, 990, 870, 0];
+const REGIONS = ["Riyadh", "Riyadh", "Jeddah", "Riyadh", "Dammam", "Riyadh"];
+
 export const branches: Branch[] = Array.from({ length: 6 }, (_, i) => ({
   id: `branch-${i + 1}`,
   num: 741 + i,
   name: `Bryan Salon branch ${i + 1}`,
-  manager: "Ahmed Salama",
-  region: "Riyadh",
-  earnings: 1440,
-  earningsTrend: "up",
+  managerIds: BRANCH_MANAGERS[i],
+  region: REGIONS[i],
+  earnings: EARNINGS[i],
+  earningsTrend: i === 3 ? "down" : "up",
   address: "3297 Anas Bin Malek - Al Malqa, Riyadh, Saudi Arabia.",
   isNew: i === 5,
   monthlyEarnings: i === 5 ? [] : MONTHLY,
@@ -51,26 +68,36 @@ export function getBranch(id: string) {
   return branches.find((b) => b.id === id);
 }
 
-export const mainDashboardStats: StatItem[] = [
-  { id: "branches", label: "Branch", value: "6" },
-  { id: "requests", label: "Requests", value: "241" },
-  { id: "services", label: "Services", value: "45" },
-  { id: "workers", label: "Workers", value: "26" },
-];
-
 /** Leaderboard rows of design 26 ("Branches sort by most earnings"). */
-export const topBranches = branches.slice(0, 4).map((b) => ({ ...b, manager: "Ahmed Salim" }));
-
-function withBranch(rows: SalonRequest[]): SalonRequest[] {
-  return rows.map((r, i) => ({ ...r, branch: `Bryan salon branch ${(i % 5) + 1}` }));
+export function branchesByEarnings(list: Branch[]) {
+  return [...list].filter((b) => !b.isNew).sort((a, b) => b.earnings - a.earnings);
 }
 
+// ---------------------------------------------------------------------------
+// Requests per branch (designs 32–36). Every active branch gets the sample
+// requests of the design; the freshly created branch 6 has none yet.
+// ---------------------------------------------------------------------------
+
+function forBranch(rows: SalonRequest[], branch: Branch): SalonRequest[] {
+  return rows.map((r) => ({ ...r, id: `${branch.id}-${r.id}`, branchId: branch.id, branch: branch.name }));
+}
+
+const ACTIVE_BRANCHES = branches.filter((b) => !b.isNew);
+const byStatus = (rows: SalonRequest[]) => ACTIVE_BRANCHES.flatMap((b) => forBranch(rows, b));
+
 export const mainRequests: Record<RequestStatus, SalonRequest[]> = {
-  new: withBranch(newRequests),
-  pending: withBranch(pendingRequests),
-  completed: withBranch(completedRequests),
-  incomplete: withBranch(incompleteRequests),
+  new: byStatus(newRequests),
+  pending: byStatus(pendingRequests),
+  completed: byStatus(completedRequests),
+  incomplete: byStatus(incompleteRequests),
 };
+
+export function getMainRequestDetails(id: string) {
+  const request = Object.values(mainRequests)
+    .flat()
+    .find((r) => r.id === id);
+  return request ? buildRequestDetails(request) : undefined;
+}
 
 /** Category list of the "All Categories" screen (design 42). */
 export const categoryRows = [
@@ -83,56 +110,23 @@ export const categoryRows = [
   { id: "cat-7", num: 451, name: "Chin" },
 ];
 
-/** Position list of the "All position" screens (designs 45, 77). */
-export const positionRows = [
-  { id: "pos-0", num: 450, name: "Hairdresser" },
-  ...Array.from({ length: 6 }, (_, i) => ({ id: `pos-${i + 1}`, num: 451 + i, name: `position${i + 1}` })),
-];
-
-export interface PowerGroup {
-  title: string;
-  powers: { key: string; label: string }[];
+export interface PositionRow {
+  id: string;
+  num: number;
+  name: string;
+  /** Default permission preset of users holding this position. */
+  presetId?: string;
 }
 
-/** Permission groups of "Powers of …" (designs 44, 46, 75). */
-export const powerGroups: PowerGroup[] = [
-  {
-    title: "Requests",
-    powers: [
-      { key: "request.add", label: "Add new request" },
-      { key: "request.delete", label: "Delete request" },
-      { key: "request.edit", label: "Edit request" },
-      { key: "request.accept", label: "Accept request" },
-    ],
-  },
-  {
-    title: "Workers",
-    powers: [
-      { key: "worker.add", label: "Add new worker" },
-      { key: "worker.delete", label: "Delete worker" },
-      { key: "worker.edit", label: "Edit worker" },
-    ],
-  },
-  {
-    title: "Services",
-    powers: [
-      { key: "service.add", label: "Add new service" },
-      { key: "service.delete", label: "Delete service" },
-      { key: "service.edit", label: "Edit service" },
-    ],
-  },
-  {
-    title: "Salon profile",
-    powers: [
-      { key: "profile.name", label: "Edit salon name" },
-      { key: "profile.images", label: "Edit salon images" },
-      { key: "profile.location", label: "Edit salon location" },
-      { key: "profile.hours", label: "Edit time and days of work" },
-    ],
-  },
+/** Position list of the "All position" screens (designs 45, 77). */
+export const positionRows: PositionRow[] = [
+  { id: "pos-0", num: 450, name: "Hairdresser" },
+  { id: "pos-1", num: 451, name: "Branch Manager", presetId: "branch-manager" },
+  { id: "pos-2", num: 452, name: "Receptionist", presetId: "receptionist" },
+  { id: "pos-3", num: 453, name: "Accountant", presetId: "accountant" },
+  { id: "pos-4", num: 454, name: "Operations Manager", presetId: "operations-manager" },
+  { id: "pos-5", num: 455, name: "Barber" },
+  { id: "pos-6", num: 456, name: "Makeup artist" },
 ];
 
 export const regions = ["Riyadh", "Jeddah", "Dammam", "Makkah", "Madinah"];
-
-/** Branch selector labels (designs 32–40). */
-export const BRANCH_TABS = Array.from({ length: 6 }, (_, i) => `Bryan salon branch ${i + 1}`);

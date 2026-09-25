@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/Form";
 import { HeaderFilter } from "@/components/ui/HeaderFilter";
 import { ListCard, ListToolbar } from "@/components/ui/ListToolbar";
-import { Pagination } from "@/components/ui/Pagination";
+import { Pagination, usePagination } from "@/components/ui/Pagination";
 import { SearchSelect } from "@/components/ui/SearchSelect";
 import {
   bills,
@@ -30,6 +30,7 @@ import {
   yearlyEntriesChart,
   type DiscountCode,
 } from "@/lib/mock-admin";
+import { DEMO_NOTE, removeRecord, toast, useRemovedIds } from "@/lib/demo-state";
 import { cn, toInputDate } from "@/lib/utils";
 
 // ---------------------------------------------------------------------------
@@ -37,6 +38,7 @@ import { cn, toInputDate } from "@/lib/utils";
 // ---------------------------------------------------------------------------
 
 export function AccountingSummaryView() {
+  const { pageRows, pagination } = usePagination(bills, 6);
   const [year, setYear] = useState("2022");
   const [yearOpen, setYearOpen] = useState(false);
 
@@ -54,13 +56,13 @@ export function AccountingSummaryView() {
               { key: "payment", header: "Payment Method", width: "w-[173px]", render: (b) => b.paymentMethod },
               { key: "earning", header: "Earning", render: (b) => <Earning value={b.earning} /> },
             ]}
-            rows={bills.slice(0, 6)}
+            rows={pageRows}
             rowKey={(b) => b.id}
             minWidth={680}
             rowHeight="h-[60px]"
           />
         </div>
-        <Pagination className="mt-[7px]" pageCount={11} compact defaultRows={7} />
+        <Pagination className="mt-[7px]" compact defaultRows={6} {...pagination} />
       </div>
 
       <aside className="border-t border-divider px-5 pb-5 pt-10 xl:border-l xl:border-t-0">
@@ -166,7 +168,6 @@ function AmountDialog({ onSave, onClose }: { onSave: (amount: number) => void; o
 }
 
 export function WalletView() {
-  const router = useRouter();
   const [rows, setRows] = useState(walletRows);
   const [query, setQuery] = useState("");
   const [type, setType] = useState<string | null>(null);
@@ -175,6 +176,7 @@ export function WalletView() {
   const visible = rows.filter(
     (r) => (!query.trim() || r.name.toLowerCase().includes(query.trim().toLowerCase())) && (!type || r.accountType === type),
   );
+  const { pageRows, pagination } = usePagination(visible);
 
   const columns: Column<WalletRow>[] = [
     { key: "num", header: "Num", width: "w-[160px]", render: (r) => r.num },
@@ -202,7 +204,7 @@ export function WalletView() {
           >
             Add to wallet
           </button>
-          <RowActions label={r.name} onView={() => router.push("/admin/users/user-2")} />
+          <RowActions label={r.name} viewHref={`/admin/users/${r.userId}`} />
         </div>
       ),
     },
@@ -219,14 +221,15 @@ export function WalletView() {
         className="h-[50px] w-full rounded-pill bg-page px-[30px] text-sm text-ink placeholder:text-[#aeaeae] focus:outline focus:outline-brand"
       />
       <div className="mt-5">
-        <DataTable columns={columns} rows={visible} rowKey={(r) => r.id} emptyText="No wallets match your filters." />
+        <DataTable columns={columns} rows={pageRows} rowKey={(r) => r.id} emptyText="No wallets match your filters." />
       </div>
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
       {adding && (
         <AmountDialog
           onClose={() => setAdding(null)}
           onSave={(amount) => {
             setRows((list) => list.map((r) => (r.id === adding.id ? { ...r, balance: r.balance + amount } : r)));
+            toast(`${amount} SAR added to ${adding.name}'s wallet. Demo only: no payment is made and nothing is saved.`);
             setAdding(null);
           }}
         />
@@ -249,15 +252,17 @@ export function BillsView() {
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
+    const source = billType === "Bills from requests" ? "request" : billType === "Bills from subscriptions" ? "subscription" : null;
     return bills.filter((b) => {
       const iso = toInputDate(b.requestDate.replace(/\s/g, ""));
       return (
+        (!source || b.source === source) &&
         (!q || b.username.toLowerCase().includes(q) || b.salon.toLowerCase().includes(q)) &&
         (!from || iso >= from) &&
         (!to || iso <= to)
       );
     });
-  }, [query, from, to]);
+  }, [query, from, to, billType]);
 
   const kind = billType === "Bills from requests" ? "requests" : billType === "Bills from subscriptions" ? "subscriptions" : "all";
 
@@ -277,9 +282,8 @@ export function BillsView() {
         />
       </div>
       <div className="mt-5">
-        <BillTable key={kind} rows={rows} kind={kind} withExport printable />
+        <BillTable key={kind} rows={rows} kind={kind} withExport printable paginate />
       </div>
-      <Pagination className="mt-auto" />
     </ListCard>
   );
 }
@@ -326,6 +330,7 @@ export function VatForm() {
         onSubmit={(e) => {
           e.preventDefault();
           setSaved(true);
+          toast(`VAT updated to ${new FormData(e.currentTarget).get("vat")}%. ${DEMO_NOTE}`);
         }}
       >
         <FormFields>
@@ -342,7 +347,7 @@ export function VatForm() {
           <SubmitButton>Save</SubmitButton>
           {saved && (
             <p role="status" className="mt-[31px] text-sm font-semibold text-positive">
-              VAT updated.
+              VAT updated (demo only, not saved).
             </p>
           )}
         </div>
@@ -356,13 +361,17 @@ export function VatForm() {
 // ---------------------------------------------------------------------------
 
 export function DiscountCodesView({ initial }: { initial: DiscountCode[] }) {
-  const [rows, setRows] = useState(initial);
+  const removed = useRemovedIds();
   const [query, setQuery] = useState("");
   const [type, setType] = useState<string | null>(null);
 
-  const visible = rows.filter(
-    (c) => (!query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase())) && (!type || c.type === type),
+  const visible = initial.filter(
+    (c) =>
+      !removed.has(c.id) &&
+      (!query.trim() || c.name.toLowerCase().includes(query.trim().toLowerCase()) || c.username.toLowerCase().includes(query.trim().toLowerCase())) &&
+      (!type || c.type === type),
   );
+  const { pageRows, pagination } = usePagination(visible);
 
   const columns: Column<DiscountCode>[] = [
     { key: "name", header: "Code name", width: "w-[141px]", render: (c) => c.name },
@@ -396,7 +405,10 @@ export function DiscountCodesView({ initial }: { initial: DiscountCode[] }) {
         <RowActions
           label={c.name}
           editHref={`/admin/accounting/discount-codes/${c.id}/edit`}
-          onDelete={() => setRows((r) => r.filter((x) => x.id !== c.id))}
+          onDelete={() => {
+            removeRecord(c.id);
+            toast(`Code ${c.name} deleted. Demo only: it returns after a reload.`);
+          }}
         />
       ),
     },
@@ -406,15 +418,16 @@ export function DiscountCodesView({ initial }: { initial: DiscountCode[] }) {
     <ListCard>
       <ListToolbar query={query} onQueryChange={setQuery} actionLabel="New Code" actionHref="/admin/accounting/discount-codes/add" />
       <div className="mt-5">
-        <DataTable columns={columns} rows={visible} rowKey={(c) => c.id} emptyText="No codes match your filters." />
+        <DataTable columns={columns} rows={pageRows} rowKey={(c) => c.id} emptyText="No codes match your filters." />
       </div>
-      <Pagination className="mt-auto" />
+      <Pagination className="mt-auto" {...pagination} />
     </ListCard>
   );
 }
 
 export function CodeForm({ code }: { code?: DiscountCode }) {
   const router = useRouter();
+  const [error, setError] = useState<string | null>(null);
   const toIso = (d: string) => {
     const t = new Date(d);
     return Number.isNaN(t.getTime()) ? undefined : toInputDate(`${t.getDate()}/${t.getMonth() + 1}/${t.getFullYear()}`);
@@ -425,6 +438,12 @@ export function CodeForm({ code }: { code?: DiscountCode }) {
       <form
         onSubmit={(e) => {
           e.preventDefault();
+          const data = new FormData(e.currentTarget);
+          if (String(data.get("end")) < String(data.get("start"))) {
+            setError("The end date must be on or after the start date.");
+            return;
+          }
+          toast(`Code ${data.get("name")} ${code ? "updated" : "added"}. ${DEMO_NOTE}`);
           router.push("/admin/accounting/discount-codes");
         }}
       >
@@ -451,7 +470,7 @@ export function CodeForm({ code }: { code?: DiscountCode }) {
           <FormField label="Start date" htmlFor="code-start">
             <DateInput id="code-start" name="start" required defaultValue={code ? toIso(code.start) : undefined} />
           </FormField>
-          <FormField label="End date" htmlFor="code-end">
+          <FormField label="End date" htmlFor="code-end" error={error ?? undefined}>
             <DateInput id="code-end" name="end" required defaultValue={code ? toIso(code.end) : undefined} />
           </FormField>
         </FormGrid>

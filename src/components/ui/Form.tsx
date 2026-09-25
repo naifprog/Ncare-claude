@@ -64,7 +64,7 @@ export function FormField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="relative max-w-[764px]">
+    <div className="relative min-w-0 max-w-[764px]">
       <label htmlFor={htmlFor} className="block pl-5 text-lg leading-5 text-ink">
         {label}
       </label>
@@ -353,5 +353,103 @@ export function SubmitButton({ children, className }: { children: React.ReactNod
     >
       {children}
     </button>
+  );
+}
+
+/**
+ * Multi-choice variant of DropdownSelect (same field and dropdown card) with a check
+ * per option; `allOption` adds an exclusive "all" choice. Submits `name` as a
+ * comma-separated list.
+ */
+export function MultiSelect({
+  id,
+  name,
+  placeholder,
+  options,
+  defaultValue = [],
+  allOption,
+  onChange,
+}: {
+  id?: string;
+  name: string;
+  placeholder: string;
+  options: { value: string; label: string }[];
+  defaultValue?: string[];
+  /** Label of the exclusive "all" choice (value "all"). */
+  allOption?: string;
+  onChange?: (value: string[]) => void;
+}) {
+  const [value, setValue] = useState<string[]>(defaultValue);
+  const [open, setOpen] = useState(false);
+  const choices = allOption ? [{ value: "all", label: allOption }, ...options] : options;
+  const summary = value.includes("all")
+    ? allOption
+    : options
+        .filter((o) => value.includes(o.value))
+        .map((o) => o.label)
+        .join(", ");
+
+  const toggle = (v: string) => {
+    const next = v === "all" ? (value.includes("all") ? [] : ["all"]) : value.includes(v) ? value.filter((x) => x !== v) : [...value.filter((x) => x !== "all"), v];
+    setValue(next);
+    onChange?.(next);
+  };
+
+  return (
+    <div className="relative">
+      <button
+        id={id}
+        type="button"
+        aria-haspopup="listbox"
+        aria-expanded={open}
+        onClick={() => setOpen((o) => !o)}
+        className={cn(FIELD_BASE, "truncate pr-20 text-left", !summary && "text-[#aeaeae]")}
+      >
+        {summary || placeholder}
+      </button>
+      <CaretDownIcon
+        className={cn("pointer-events-none absolute right-[54px] top-[21px] text-ink transition-transform", open && "rotate-180")}
+      />
+      <input type="hidden" name={name} value={value.join(",")} />
+      {open && (
+        <>
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <ul
+            role="listbox"
+            aria-multiselectable="true"
+            className="absolute right-5 top-[58px] z-50 max-h-[300px] min-w-[220px] overflow-y-auto rounded-[5px] bg-card px-2.5 py-1 shadow-card thin-scrollbar"
+          >
+            {choices.map((o) => {
+              const selected = value.includes(o.value);
+              return (
+                <li key={o.value} className="border-b border-[#f2f2f2] last:border-0">
+                  <button
+                    type="button"
+                    role="option"
+                    aria-selected={selected}
+                    onClick={() => toggle(o.value)}
+                    className={cn(
+                      "flex h-[41px] w-full items-center gap-2.5 whitespace-nowrap px-2 text-sm text-ink hover:text-brand",
+                      selected && "font-bold text-brand",
+                    )}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className={cn(
+                        "flex h-4 w-4 shrink-0 items-center justify-center rounded-[3px] border text-[10px] text-white",
+                        selected ? "border-brand bg-brand" : "border-divider",
+                      )}
+                    >
+                      {selected ? "✓" : ""}
+                    </span>
+                    {o.label}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </div>
   );
 }
