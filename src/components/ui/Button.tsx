@@ -28,6 +28,33 @@ export function Button({ variant = "primary", className, ...props }: ButtonProps
   );
 }
 
+const OUTLINE_TONES = {
+  orange: "border-brand-orange text-brand-orange",
+  brand: "border-brand text-brand",
+  purple: "border-[#7e1bff] text-[#7e1bff]",
+  negative: "border-negative text-negative",
+  info: "border-info text-info",
+} as const;
+
+export type OutlineTone = keyof typeof OUTLINE_TONES;
+
+/** Outlined square action used in the Workers / Services tables and document lists. */
+export function outlineIconButtonClass(tone: OutlineTone, className?: string) {
+  return cn(
+    "inline-flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[5px] border bg-card shadow-card transition-colors hover:bg-page disabled:cursor-not-allowed disabled:opacity-40",
+    OUTLINE_TONES[tone],
+    className,
+  );
+}
+
+export function OutlineIconButton({
+  className,
+  tone = "brand",
+  ...props
+}: ButtonHTMLAttributes<HTMLButtonElement> & { tone?: OutlineTone }) {
+  return <button type="button" className={outlineIconButtonClass(tone, className)} {...props} />;
+}
+
 export function IconButton({
   className,
   tone = "brand",
