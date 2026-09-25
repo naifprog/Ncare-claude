@@ -1,114 +1,199 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
-import { Avatar } from "@/components/ui/Avatar";
-import { Button, IconButton } from "@/components/ui/Button";
+import { PhotoAvatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "@/components/ui/Badge";
+import { OutlineIconButton, outlineIconButtonClass } from "@/components/ui/Button";
+import { ExportMenu } from "@/components/ui/ExportMenu";
+import { HeaderFilter } from "@/components/ui/HeaderFilter";
 import { Icon } from "@/components/ui/Icon";
 import { Pagination } from "@/components/ui/Pagination";
+import { requestServiceFilters } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import type { RequestStatus, SalonRequest } from "@/types";
 
-function RowOptions({ status, disabled }: { status: RequestStatus; disabled?: boolean }) {
+/** Column widths measured from the design (table is 1004px wide at 1440). */
+const COLUMNS = ["w-[73px]", "w-[193px]", "w-[167px]", "w-[164px]", "w-[201px]", ""];
+
+function RowOptions({
+  row,
+  status,
+  onDelete,
+  basePath,
+}: {
+  row: SalonRequest;
+  status: RequestStatus;
+  onDelete: () => void;
+  basePath: string;
+}) {
   const [resolution, setResolution] = useState<"accepted" | "rejected" | null>(null);
-  const rowDisabled = disabled || resolution !== null;
+
+  const view = (
+    <Link
+      href={`${basePath}/${row.id}`}
+      aria-label={`View request ${row.num}`}
+      className={outlineIconButtonClass("orange")}
+    >
+      <Icon name="eye" size={18} />
+    </Link>
+  );
 
   if (status === "new") {
     return (
-      <div className="flex items-center justify-end gap-2">
-        <IconButton tone="brand" aria-label="Quick action" disabled={rowDisabled}>
-          <Icon name="bolt" size={16} />
-        </IconButton>
-        <Button
-          variant="reject"
-          className="px-3 py-1.5 text-xs"
-          disabled={rowDisabled}
+      <div className="flex items-center gap-2.5">
+        {view}
+        <button
+          type="button"
+          disabled={resolution !== null}
           onClick={() => setResolution("rejected")}
+          className="h-[30px] w-[75px] rounded-[3px] bg-negative text-sm text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {resolution === "rejected" ? "Rejected" : "Reject"}
-        </Button>
-        <Button
-          variant="accept"
-          className="px-3 py-1.5 text-xs"
-          disabled={rowDisabled}
+        </button>
+        <button
+          type="button"
+          disabled={resolution !== null}
           onClick={() => setResolution("accepted")}
+          className="h-[30px] w-[74px] rounded-[3px] bg-positive text-sm text-white shadow-card transition-opacity hover:opacity-90 disabled:opacity-40"
         >
           {resolution === "accepted" ? "Accepted" : "Accept"}
-        </Button>
+        </button>
       </div>
     );
   }
 
-  return (
-    <div className="flex items-center justify-end gap-2">
-      <IconButton tone="brand" aria-label="Quick action" disabled={disabled}>
-        <Icon name="bolt" size={16} />
-      </IconButton>
-      <IconButton tone="info" aria-label="Edit" disabled={disabled}>
-        <Icon name="edit" size={16} />
-      </IconButton>
-      <IconButton tone="negative" aria-label="Delete" disabled={disabled}>
-        <Icon name="trash" size={16} />
-      </IconButton>
-    </div>
-  );
+  if (status === "pending") {
+    return (
+      <div className="flex items-center gap-2.5">
+        {view}
+        <Link
+          href={`${basePath}/${row.id}/edit`}
+          aria-label={`Edit request ${row.num}`}
+          className={outlineIconButtonClass("brand")}
+        >
+          <Icon name="edit" size={18} />
+        </Link>
+        <OutlineIconButton tone="negative" aria-label={`Delete request ${row.num}`} onClick={onDelete}>
+          <Icon name="trash" size={18} />
+        </OutlineIconButton>
+      </div>
+    );
+  }
+
+  return <div className="flex items-center">{view}</div>;
 }
 
-export function RequestsTable({ rows, status }: { rows: SalonRequest[]; status: RequestStatus }) {
+export function RequestsTable({
+  rows,
+  status,
+  serviceFilter,
+  onServiceFilter,
+  priorityFilter,
+  onPriorityFilter,
+  basePath = "/requests",
+  exportName,
+}: {
+  rows: SalonRequest[];
+  status: RequestStatus;
+  serviceFilter: string | null;
+  onServiceFilter: (value: string | null) => void;
+  priorityFilter: string | null;
+  onPriorityFilter: (value: string | null) => void;
+  basePath?: string;
+  /** Adds the orange export button to the Options header (super admin, designs 60, 68). */
+  exportName?: string;
+}) {
+  const [deleted, setDeleted] = useState<string[]>([]);
+  const visible = rows.filter((r) => !deleted.includes(r.id));
+
   return (
-    <div className="overflow-hidden rounded-card bg-card shadow-card-sm">
+    <div className="mt-2.5">
       <div className="overflow-x-auto thin-scrollbar">
-        <table className="w-full min-w-[760px] border-collapse text-left text-sm">
+        <table className="w-full min-w-[1004px] table-fixed border-collapse text-left text-sm text-ink">
+          <colgroup>
+            {COLUMNS.map((w, i) => (
+              <col key={i} className={w} />
+            ))}
+          </colgroup>
           <thead>
-            <tr className="border-b border-border text-xs font-semibold text-ink-muted">
-              <th className="px-5 py-3">Num</th>
-              <th className="px-5 py-3">Worker Name</th>
-              <th className="px-5 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Services <Icon name="chevronDown" size={10} />
-                </span>
+            <tr className="h-[50px] bg-page font-normal">
+              <th className="pl-2.5 font-normal">Num</th>
+              <th className="font-normal">Worker Name</th>
+              <th className="font-normal">
+                <HeaderFilter
+                  label="Services"
+                  options={requestServiceFilters}
+                  value={serviceFilter}
+                  onChange={onServiceFilter}
+                />
               </th>
-              <th className="px-5 py-3">
-                <span className="inline-flex items-center gap-1">
-                  Request type <Icon name="chevronDown" size={10} />
-                </span>
+              <th className="font-normal">
+                <HeaderFilter
+                  label="Request type"
+                  options={["Normal", "Special"]}
+                  value={priorityFilter}
+                  onChange={onPriorityFilter}
+                />
               </th>
-              <th className="px-5 py-3">Date&amp;Time</th>
-              <th className="px-5 py-3 text-right">Options</th>
+              <th className="font-normal">Date&amp;Time</th>
+              <th className="font-normal">
+                {exportName ? (
+                  <span className="flex items-center justify-between pr-5">
+                    Options
+                    <ExportMenu
+                      fileName={exportName}
+                      rows={visible.map((r) => ({ Num: r.num, Worker: r.workerName, Service: r.service, Type: r.priority, Date: `${r.time}, ${r.date}` }))}
+                    />
+                  </span>
+                ) : (
+                  "Options"
+                )}
+              </th>
             </tr>
           </thead>
           <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.id}
-                className={cn(
-                  "border-b border-border last:border-0",
-                  row.disabled && "opacity-40",
-                )}
-              >
-                <td className="px-5 py-4 font-semibold text-ink">{row.num}</td>
-                <td className="px-5 py-4">
-                  <div className="flex items-center gap-2">
-                    <Avatar seed={row.avatarSeed} size={28} />
-                    <span className="font-medium text-ink">{row.workerName}</span>
-                  </div>
+            {visible.map((row) => (
+              <tr key={row.id} className="h-[70px] border-b border-[#f2f2f2]">
+                <td className="pl-2.5">{row.num}</td>
+                <td>
+                  <span className="flex items-center gap-2.5">
+                    <PhotoAvatar />
+                    <span className="truncate">{row.workerName}</span>
+                  </span>
                 </td>
-                <td className="px-5 py-4 text-ink">{row.service}</td>
-                <td className="px-5 py-4">
+                <td>
+                  <span className="inline-flex h-[30px] w-[86px] items-center justify-center rounded-[3px] bg-page">
+                    {row.service}
+                  </span>
+                </td>
+                <td>
                   <PriorityBadge priority={row.priority} />
                 </td>
-                <td className="px-5 py-4 whitespace-nowrap text-ink-muted">
+                <td className="whitespace-nowrap">
                   {row.time}, {row.date}
                 </td>
-                <td className="px-5 py-4">
-                  <RowOptions status={status} disabled={row.disabled} />
+                <td>
+                  <RowOptions
+                    row={row}
+                    status={status}
+                    basePath={basePath}
+                    onDelete={() => setDeleted((d) => [...d, row.id])}
+                  />
                 </td>
               </tr>
             ))}
+            {visible.length === 0 && (
+              <tr>
+                <td colSpan={6} className={cn("py-10 text-center text-ink-muted")}>
+                  No requests match your filters.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
-      <Pagination />
+      <Pagination className="mt-[7px]" />
     </div>
   );
 }
