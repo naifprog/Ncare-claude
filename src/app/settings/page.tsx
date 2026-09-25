@@ -1,10 +1,11 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/ui/ComingSoon";
+import { SalonProfileView } from "@/components/settings/SalonProfileView";
+import { salonProfile } from "@/lib/mock-data";
 
 export default function SalonSettingsPage() {
   return (
     <AppShell title="Salon Settings">
-      <ComingSoon title="Salon Settings" icon="settings" />
+      <SalonProfileView profile={salonProfile} />
     </AppShell>
   );
 }

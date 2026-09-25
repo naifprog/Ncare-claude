@@ -1,10 +1,11 @@
 import { AppShell } from "@/components/layout/AppShell";
-import { ComingSoon } from "@/components/ui/ComingSoon";
+import { ServicesView } from "@/components/services/ServicesView";
+import { salonServices, workerProfiles } from "@/lib/mock-data";
 
 export default function ServicesPage() {
   return (
     <AppShell title="Services">
-      <ComingSoon title="Services" icon="services" />
+      <ServicesView initialServices={salonServices} workers={workerProfiles} />
     </AppShell>
   );
 }
