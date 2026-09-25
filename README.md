@@ -32,8 +32,20 @@ backend, database, or real authentication yet.
   request"), 4 tabs (New / Pending / Completed / Incomplete) each with
   their own accent color, a data table with per-status row actions, and
   pagination.
-- **Workers / Services / Salon Settings** — placeholder shells (sidebar
-  + header already wired) for the next build phase.
+- **Add / Edit request** (`/requests/add`, `/requests/[id]/edit`) and
+  **Request details** (`/requests/[id]`) — status-specific actions
+  (Accept/Reject, Pending + Edit/Delete, Completed, Incompleted), special
+  requests show the customer address, "Print bill".
+- **Workers** (`/workers`) — search, Nationality/Position filters, earnings
+  sort; **Add/Edit worker** and **Worker profile** with the "Important
+  documents" list and add-document state.
+- **Services** (`/services`) — search, Category filter; **Add/Edit
+  service** and **Service details**.
+- **Salon Settings** — profile with work time + ratings and an edit mode
+  (`/settings`), **Change password** (`/settings/password`).
+
+Sidebar sections have the submenus from the design. Saves/deletes are local
+UI state only (no backend yet).
 
 All data comes from `src/lib/mock-data.ts`.
 
