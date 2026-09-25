@@ -1,15 +1,17 @@
+import { cn } from "@/lib/utils";
 import type { StatItem } from "@/types";
 
-export function StatsGrid({ stats }: { stats: StatItem[] }) {
+/** Arch-shaped stat tiles (138×155, fully rounded top, 5px bottom corners). */
+export function StatsGrid({ stats, className }: { stats: StatItem[]; className?: string }) {
   return (
-    <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+    <div className={cn("grid grid-cols-2 justify-items-center gap-5 sm:flex sm:gap-[33px] sm:pl-1.5", className)}>
       {stats.map((stat) => (
         <div
           key={stat.id}
-          className="flex aspect-square flex-col items-center justify-center gap-1 rounded-full bg-[#f2f2f2] p-4 text-center"
+          className="flex h-[155px] w-[138px] flex-col items-center rounded-t-[69px] rounded-b-[5px] bg-page pt-[47px] text-ink shadow-card"
         >
-          <span className="text-2xl font-bold text-ink sm:text-3xl">{stat.value}</span>
-          <span className="text-xs font-medium text-ink-muted sm:text-sm">{stat.label}</span>
+          <span className="text-[36px] font-bold leading-none">{stat.value}</span>
+          <span className="mt-[21px] text-xl leading-none">{stat.label}</span>
         </div>
       ))}
     </div>

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Avatar } from "@/components/ui/Avatar";
+import { PhotoAvatar } from "@/components/ui/Avatar";
 import { PriorityBadge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
 import { cn } from "@/lib/utils";
@@ -9,36 +9,35 @@ import type { SalonRequest } from "@/types";
 
 export function RequestCard({ request }: { request: SalonRequest }) {
   const [resolution, setResolution] = useState<"accepted" | "rejected" | null>(null);
-  const isDisabled = request.disabled || resolution !== null;
+  const isResolved = resolution !== null;
 
   return (
-    <li className={cn("space-y-3 py-4 first:pt-0 last:pb-0", isDisabled && "opacity-40")}>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2">
-          <Avatar seed={request.avatarSeed} size={30} />
-          <span className="text-sm font-semibold text-ink">{request.workerName}</span>
+    <li className={cn("rounded-[5px] bg-page p-5 text-sm text-ink", isResolved && "opacity-40")}>
+      <div className="flex h-[30px] items-center justify-between gap-3">
+        <div className="flex min-w-0 items-center gap-[11px]">
+          <PhotoAvatar />
+          <span className="truncate">{request.workerName}</span>
         </div>
         <PriorityBadge priority={request.priority} />
       </div>
-      <div className="space-y-1 text-xs text-ink-muted">
-        <p>Services: {request.service}</p>
-        <p>
-          Date&amp;Time: {request.time}, {request.date}
-        </p>
-      </div>
-      <div className="flex gap-3">
+      <p className="mt-2.5 leading-[30px]">Services: {request.service}</p>
+      {request.branch ? <p className="leading-[30px]">Branch: {request.branch}</p> : null}
+      <p className="leading-[30px]">
+        Date&amp;Time: {request.time}, {request.date}
+      </p>
+      <div className="mt-2.5 flex gap-2.5">
         <Button
           variant="reject"
-          className="flex-1"
-          disabled={isDisabled}
+          className="h-10 flex-1 py-0 shadow-card"
+          disabled={isResolved}
           onClick={() => setResolution("rejected")}
         >
           {resolution === "rejected" ? "Rejected" : "Reject"}
         </Button>
         <Button
           variant="accept"
-          className="flex-1"
-          disabled={isDisabled}
+          className="h-10 flex-1 py-0 shadow-card"
+          disabled={isResolved}
           onClick={() => setResolution("accepted")}
         >
           {resolution === "accepted" ? "Accepted" : "Accept"}
