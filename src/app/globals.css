@@ -23,6 +23,11 @@
   --color-tint-yellow: #fff7d6;
   --color-tint-rose: #ffe4df;
   --color-tint-navy: #214097;
+  --color-tint-purple: #e3cdff;
+  --color-tint-green: #e6f2de;
+
+  /* Section divider lines */
+  --color-divider: #d6d6d6;
 
   /* Shadows */
   --shadow-card-color: 198 198 198;
@@ -30,6 +35,9 @@
 
 @theme inline {
   --font-sans: Arial, Helvetica, sans-serif;
+
+  /* The design's frame width (1440px); used for the pixel-exact desktop layout. */
+  --breakpoint-desk: 90rem;
 
   --color-page: var(--color-page);
   --color-card: var(--color-card);
@@ -49,6 +57,9 @@
   --color-tint-yellow: var(--color-tint-yellow);
   --color-tint-rose: var(--color-tint-rose);
   --color-tint-navy: var(--color-tint-navy);
+  --color-tint-purple: var(--color-tint-purple);
+  --color-tint-green: var(--color-tint-green);
+  --color-divider: var(--color-divider);
 
   --radius-card: 5px;
   --radius-pill: 20px;
@@ -61,6 +72,37 @@
 body {
   background: var(--color-page);
   color: var(--color-ink);
+}
+
+/*
+ * Bottom fades of the dashboard's scrollable lists. In the design the last visible item is
+ * shown as a ~30% "ghost" (hinting that the list scrolls); profiles measured from the reference.
+ */
+.fade-workers {
+  --fade: linear-gradient(to bottom, #000 calc(100% - 92px), rgb(0 0 0 / 0.3) calc(100% - 80px), rgb(0 0 0 / 0.22) calc(100% - 35px), transparent 100%);
+}
+.fade-services {
+  --fade: linear-gradient(to bottom, #000 calc(100% - 90px), rgb(0 0 0 / 0.15) calc(100% - 40px), transparent 100%);
+}
+.fade-requests {
+  --fade: linear-gradient(to bottom, #000 calc(100% - 200px), rgb(0 0 0 / 0.75) calc(100% - 180px), rgb(0 0 0 / 0.35) calc(100% - 160px), rgb(0 0 0 / 0.25) calc(100% - 40px), transparent 100%);
+}
+.fade-ratings {
+  --fade: linear-gradient(to bottom, #000 calc(100% - 125px), rgb(0 0 0 / 0.35) calc(100% - 95px), transparent calc(100% - 10px));
+}
+.fade-workers,
+.fade-services,
+.fade-requests,
+.fade-ratings {
+  -webkit-mask-image: var(--fade);
+  mask-image: var(--fade);
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 /* Thin, unobtrusive scrollbars used inside panels/tables */
